@@ -1,0 +1,56 @@
+Overview
+========
+Parses XML notices sent via email by the GCN (http://gcn.gsfc.nasa.gov)
+creates a sqlite database with a subset of the data sent and calculates the
+zenith angle of the GCN.
+
+Included files:
+===============
+* README : this file
+* gcn_parser.py : File which is run upon the arrival of an email
+* gcn_dbinterface.py : Module which defines the database structure
+
+Environment
+===========
+Required python modules:
+------------------------
+* sql_interface
+* numpy
+* matplotlib
+* ephem
+* bitly
+* emailer
+
+
+Expected environmental variables:
+---------------------------------
+* HOME : home directory used to set defaults for missing environmental variables
+### gcn_dbinterface ###
+* GCNDB : Location of sqlite data base file
+          Default: $GCNWEB/gcns.db
+* GCNDBNAME : Name of data base within $GCNDB used to store GCNs
+              Default: gcns
+### gcn-parser ###
+* GCNLOG : Log file used
+           Default: $HOME/logs/gcn-parser.log
+* GCNLOCK : Location of lock file
+            Default: $HOME/.gcnlock
+### site-alerter ###
+* GCNWEB : Base directory to output web page related files
+           Default: $HOME/public_html
+* NOUTGCNS : Number of GCNs to output to web page
+             Default: 100
+* GCNSITE : Tag used to denote the site
+            Default: HAWC
+* GCNSITELAT : Latitude in degrees North for site
+               Default: +19.0304954539937
+* GCNSITELONG : Longitude in degrees East for site
+                Default: -97.2698484177274
+* GCNSITEHORIZON : Altitude angle in degrees to consider rising and setting
+                   Default: 45.0
+
+USAGE
+=====
+Ideally one should pass the contents of an email to this gcn_parser.py via
+procmail. It will read the data from stdin and process it.
+
