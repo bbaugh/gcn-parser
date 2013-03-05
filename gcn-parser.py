@@ -40,12 +40,16 @@ except:
 ################################################################################
 # Generic Settings
 ################################################################################
-
 # Get log file name
 try:
   gcnlog = environ['GCNLOG']
 except:
-  gcnlog = '%s/logs/gcnalerts.log'%homedir
+  gcnlog = '%s/logs/gcn-parser.log'%homedir
+
+try:
+  gcnalerts = environ['GCNALERTS']
+except:
+  gcnalerts = None
 
 curtime = time.strftime('%Y-%m-%d %H:%M:%S')
 ################################################################################
@@ -242,7 +246,30 @@ try:
   newgcn.mesgtype = what.find('Description').text
   # derived
   newgcn.sent = 0
-  
+  lcmesgtype = newgcn.mesgtype.lower()
+  if lcmesgtype.find('fermi') >= 0:
+    if lcmesgtype.find('fermi-lat') >= 0:
+      newgcn.inst = "Fermi-LAT"
+    elif lcmesgtype.find('fermi-gbm') >= 0:
+      newgcn.inst = "Fermi-GBM"
+    else:
+      newgcn.inst = "Fermi"
+  elif lcmesgtype.find('swift') >= 0:
+    if lcmesgtype.find('swift-uvot') >= 0:
+      newgcn.inst = "Swift-UVOT"
+    elif lcmesgtype.find('swift-xrt') >= 0:
+      newgcn.inst = "Swift-XRT"
+    elif lcmesgtype.find('swift-bat') >= 0:
+      newgcn.inst = "Swift-BAT"
+    else:
+      newgcn.inst = "Swift"
+  elif lcmesgtype.find('integral') >= 0:
+    newgcn.inst = "Integral"
+  elif lcmesgtype.find('maxi') >= 0:
+    newgcn.inst = "MAXI"
+  elif lcmesgtype.find('icn') >= 0:
+    newgcn.inst = "ICN"
+
   gcndbstruct = newgcn.__dbstruct__
   print '============================================'
   for cattr in gcndbstruct.keys():
@@ -254,13 +281,15 @@ except:
 
 
 id, status = AddGCN(newgcn)
-if status == 0:
-  log.write('%s: Failed to add new GCN:%s %s\n'%(curtime,cgcn.inst,cgcn.trignumraw))
-
 # Close DB connections
 gcncurs.close()
 gcndbconn.commit()
-call(['python','%s/site-alerter.py'%pathname],stdout=log,stderr=STDOUT)
+if status == 0:
+  log.write('%s: Failed to add new GCN:%s %s\n'%(curtime,cgcn.inst,cgcn.trignumraw))
+  gcnalerts = None
+
+if gcnalerts != None:
+  call(['python','%s/site-alerter.py'%pathname],stdout=log,stderr=STDOUT)
 
 easy_exit(0)
 
