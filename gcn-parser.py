@@ -209,7 +209,6 @@ try:
   xroot = ET.fromstring(indata)
 except:
   log.write('%s: Malformed XML (no root)\n'%(curtime))
-  print indata
   easy_exit(-2)
 
 

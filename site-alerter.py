@@ -38,14 +38,7 @@ try:
   import matplotlib.image as image
   from numpy import deg2rad, rad2deg, arange, asarray, array, pi, where, iterable
   import ephem
-  try:
-    from bitly import shorten
-  except:
-    '''
-      If bitly cannot be loaded do not shorten URLs
-    '''
-    def shorten(longurl):
-      return longurl
+  from bitly import shorten
 
   # Home directory
   homedir = environ['HOME']

@@ -48,7 +48,7 @@ Expected environmental variables:
 * GCNSMTP : SMTP server from which to send email alerts
             REQUIRED
 * BITLYAPI : Points to file with two lines: bitly username and bitly API key
-             Default: ${HOME}/bitlyapi
+             Default: ${HOME}/.bitlyapi
 * GCNSITE : Tag used to denote the site
             Default: HAWC
 * GCNSITELAT : Latitude in degrees North for site
