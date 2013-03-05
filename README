@@ -14,12 +14,17 @@ Environment
 ===========
 Required python modules:
 ------------------------
-* sql_interface
+### gcn_dbinterface ###
+* sqlite3
+### gcn-parser ###
+* xml.etree.ElementTree or elementtree.ElementTree'
+### site-alerter ###
+* xml.etree.ElementTree or elementtree.ElementTree'
 * numpy
+* smtplib
+* email
 * matplotlib
 * ephem
-* bitly
-* emailer
 
 
 Expected environmental variables:
@@ -36,10 +41,12 @@ Expected environmental variables:
 * GCNLOCK : Location of lock file
             Default: $HOME/.gcnlock
 ### site-alerter ###
-* GCNWEB : Base directory to output web page related files
-           Default: $HOME/public_html
-* NOUTGCNS : Number of GCNs to output to web page
-             Default: 100
+* GCNHTTP : HTTP base for site being generated
+            REQUIRED
+* GCNSMTP : SMTP server from which to send email alerts
+            REQUIRED
+* BITLYAPI : Points to file with two lines: bitly username and bitly API key
+             Default: ${HOME}/bitlyapi
 * GCNSITE : Tag used to denote the site
             Default: HAWC
 * GCNSITELAT : Latitude in degrees North for site
@@ -48,6 +55,10 @@ Expected environmental variables:
                 Default: -97.2698484177274
 * GCNSITEHORIZON : Altitude angle in degrees to consider rising and setting
                    Default: 45.0
+* GCNWEB : Base directory to output web page related files
+           Default: $HOME/public_html
+* NOUTGCNS : Number of GCNs to output to web page
+             Default: 100
 
 USAGE
 =====

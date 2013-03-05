@@ -56,7 +56,6 @@ class gcninfo(baseentry):
 # SQLITE CONFIGURATION
 ################################################################################
 # DB interface formats
-querystr = "SELECT * FROM %s where "%gcndbname+" trigid='%s' AND inst='%s' AND datestr='%s';"
 gcndbtblck = "SELECT name FROM sqlite_master WHERE type='table' AND name='%s';"%gcndbname
 
 # Get default structure
@@ -69,7 +68,7 @@ try:
   gcncurs.execute(gcndbtblck)
   dbtblstate = gcncurs.fetchone()
   if dbtblstate == None:
-    dbctbl = GetDBStr("gcns",gcndbstruct)
+    dbctbl = GetDBStr(gcndbname,gcndbstruct)
     gcncurs.execute(dbctbl)
     gcndbconn.commit()
 except:
@@ -87,13 +86,7 @@ gcnchkstruct = {}
 for cattr in gcnchkkeys:
   gcnchkstruct[cattr] = gcndbstruct[cattr]
 gcnckstr = GetCheckStr(gcndbname,gcnchkstruct)
-# Construct general check string
-gengcnchkkeys = ["trigid", "datestr","sent"]
 
-gengcnchkstruct = {}
-for cattr in gengcnchkkeys:
-  gengcnchkstruct[cattr] = gcndbstruct[cattr]
-gengcnckstr = GetCheckStr(gcndbname,gengcnchkstruct)
 # Construct insert string
 gcninststr = GetInsertStr(gcndbname,gcndbstruct)
 
@@ -106,21 +99,6 @@ gcnupkeys = [ "isnotgrb",
 gcnupstruct = {}
 for cattr in gcnupkeys:
   gcnupstruct[cattr] = gcndbstruct[cattr]
-
-
-def CheckSent(newEntry):
-  carr = [ ]
-  for cattr in gengcnchkstruct.keys():
-    carr.append(newEntry.__getattribute__(cattr))
-    if cattr == 'sent':
-       carr[-1] = 1
-  # Set 
-  ckstr = gengcnckstr%tuple(carr)
-  gcncurs.execute(ckstr)
-  mtchs = gcncurs.fetchall()
-  if len(mtchs)>0:
-    return 1
-  return 0
 
 def UpdateGCN(newEntry,id):
   ustr = "UPDATE %s SET "%(gcndbname)
@@ -142,8 +120,6 @@ def AddGCN(newEntry):
   gcncurs.execute(ckstr)
   mtchs = gcncurs.fetchall()
   if len(mtchs) == 0:
-    if CheckSent(newEntry) > 0:
-      newEntry.sent = 1
     carr = [newEntry.__getattribute__(cattr) for cattr in gcndbstruct.keys() ]
     cintstr = gcninststr%tuple(carr)
     gcncurs.execute(cintstr)

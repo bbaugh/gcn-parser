@@ -38,7 +38,15 @@ try:
   import matplotlib.image as image
   from numpy import deg2rad, rad2deg, arange, asarray, array, pi, where, iterable
   import ephem
-  #from bitly import shorten
+  try:
+    from bitly import shorten
+  except:
+    '''
+      If bitly cannot be loaded do not shorten URLs
+    '''
+    def shorten(longurl):
+      return longurl
+
   # Home directory
   homedir = environ['HOME']
 # stop if something looks wrong
@@ -250,62 +258,62 @@ gcns = ET.SubElement(root, "gcns")
 
 idindex = gcndbstruct['id']['index']
 sentindex = gcndbstruct['sent']['index']
-  #try:
-for row in recent:
-  print row
-  qstr = "SELECT * FROM gcns WHERE datestr='%s' ORDER BY error ASC;"%row[0]
-  gcncurs.execute(qstr)
-  cmtchs = gcncurs.fetchall()
-  cmtch = cmtchs[0]
-  sentflg = 0
-  for m in cmtchs:
-    sentflg += m[sentindex]
-    if m[idindex] > cmtch[idindex]:
-      cmtch = m
-  curgcninfo = MakeEntry(cmtch,gcninfo,gcndbstruct)
-  # Calculate position at site
-  curmis = curgcninfo.inst.lower().replace('/','_')
-  evttag = '%s_gcn_%s'%(curmis,curgcninfo.trigid)
-  transient = ephemcalcs(site,plotsbase,evttag,curgcninfo)
-  if transient.alt > pi*.25 and sentflg == 0:
-    try:
-      gcnlink = hrefre.findall(curgcninfo.trigid)[0]
-      shrturl = shorten(gcnlink)
-    except:
-      shrturl = ""
-    if shrturl != "":
-      shrturl = ' %s'%shrturl
-      sbjct = sbjctfmt%(curgcninfo.datestr,sitetag.capitalize())
-      txt = gettxt(curgcninfo,90.-rad2deg(transient.alt),shrturl)
-      ustr = "UPDATE gcns SET sent=1 WHERE trigid='%s';"%curgcninfo.trigid
+try:
+  for row in recent:
+    print row
+    qstr = "SELECT * FROM gcns WHERE datestr='%s' ORDER BY error ASC;"%row[0]
+    gcncurs.execute(qstr)
+    cmtchs = gcncurs.fetchall()
+    cmtch = cmtchs[0]
+    sentflg = 0
+    for m in cmtchs:
+      sentflg += m[sentindex]
+      if m[idindex] > cmtch[idindex]:
+        cmtch = m
+    curgcninfo = MakeEntry(cmtch,gcninfo,gcndbstruct)
+    # Calculate position at site
+    curmis = curgcninfo.inst.lower().replace('/','_')
+    evttag = '%s_gcn_%s'%(curmis,curgcninfo.trigid)
+    transient = ephemcalcs(site,plotsbase,evttag,curgcninfo)
+    if transient.alt > pi*.25 and sentflg == 0:
       try:
-        gcncurs.execute(ustr)
-        gcndbconn.commit()
-        email(sender,recipients,sbjct,txt)
-        print '%s: Sent: %s\n'%(curtime,sbjct)
+        gcnlink = hrefre.findall(curgcninfo.trigid)[0]
+        shrturl = shorten(gcnlink)
       except:
-        print '%s: Failed to send notification or update DB.\n'%(curtime)
-  
-  # Save to XML
-  curgcn = ET.SubElement(gcns, "gcn")
-  if transient.alt > site.horizon:
-    curgcn.attrib['class'] = "obs"
-  else:
-    curgcn.attrib['class'] = "outfov"
-  for cattr in gcndbstruct.keys():
-    cursubelm = ET.SubElement(curgcn,cattr)
-    cursubelm.text = str(curgcninfo.__getattribute__(cattr))
-  ctalt = rad2deg(transient.alt)
-  cursubelm = ET.SubElement(curgcn,'%s_zenith'%sitetag)
-  cursubelm.text = str(90.-ctalt)
-  cursubelm = ET.SubElement(curgcn,'%s_img'%sitetag)
-  ofname = '%s/gcns/%s_%s_altitude_timeline%s'%(gcnhttp,evttag,sitetag.lower(),ptype)
-  othbfname = '%s/gcns/thumbs/%s_%s_altitude_timeline_tn%s'%(gcnhttp,evttag,sitetag.lower(),ptype)
+        shrturl = ""
+      if shrturl != "":
+        shrturl = ' %s'%shrturl
+        sbjct = sbjctfmt%(curgcninfo.datestr,sitetag.capitalize())
+        txt = gettxt(curgcninfo,90.-rad2deg(transient.alt),shrturl)
+        ustr = "UPDATE gcns SET sent=1 WHERE trigid='%s';"%curgcninfo.trigid
+        try:
+          gcncurs.execute(ustr)
+          gcndbconn.commit()
+          email(sender,recipients,sbjct,txt)
+          print '%s: Sent: %s\n'%(curtime,sbjct)
+        except:
+          print '%s: Failed to send notification or update DB.\n'%(curtime)
+    
+    # Save to XML
+    curgcn = ET.SubElement(gcns, "gcn")
+    if transient.alt > site.horizon:
+      curgcn.attrib['class'] = "obs"
+    else:
+      curgcn.attrib['class'] = "outfov"
+    for cattr in gcndbstruct.keys():
+      cursubelm = ET.SubElement(curgcn,cattr)
+      cursubelm.text = str(curgcninfo.__getattribute__(cattr))
+    ctalt = rad2deg(transient.alt)
+    cursubelm = ET.SubElement(curgcn,'%s_zenith'%sitetag)
+    cursubelm.text = str(90.-ctalt)
+    cursubelm = ET.SubElement(curgcn,'%s_img'%sitetag)
+    ofname = '%s/gcns/%s_%s_altitude_timeline%s'%(gcnhttp,evttag,sitetag.lower(),ptype)
+    othbfname = '%s/gcns/thumbs/%s_%s_altitude_timeline_tn%s'%(gcnhttp,evttag,sitetag.lower(),ptype)
 
-  cursubelm.text = '<a href="%s"><img alt="Angry face" src="%s"></a>'%(ofname,othbfname)
-#except:
-#  print '%s: Failed while looping over GCNs\n'%(curtime)
-#  easy_exit(-6)
+    cursubelm.text = '<a href="%s"><img alt="Angry face" src="%s"></a>'%(ofname,othbfname)
+except:
+  print '%s: Failed while looping over GCNs\n'%(curtime)
+  easy_exit(-6)
 
 
 outtxt = ET.tostring(root)

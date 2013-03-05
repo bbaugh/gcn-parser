@@ -30,7 +30,6 @@ try:
       _exit(-1)
   from gcn_dbinterface import gcncurs, gcndbconn, gcndbname, \
     gcndbstruct, MakeEntry, gcninfo, AddGCN
-  from numpy import deg2rad, rad2deg, arange, asarray, array, pi, where
   # Home directory
   homedir = environ['HOME']
   # stop if something looks wrong
