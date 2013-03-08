@@ -38,8 +38,6 @@ Expected environmental variables:
 ### gcn-parser ###
 * GCNLOG : Log file used
            Default: $HOME/logs/gcn-parser.log
-* GCNLOCK : Location of lock file
-            Default: $HOME/.gcnlock
 * GCNALERTS : If set then gcn-parser will call site-alerter
               Default: unset
 ### site-alerter ###

@@ -34,7 +34,7 @@ try:
       surl = bitlyre.findall(bitlyraw)[0]
       return surl
     except:
-      return ""
+      return longurl
 except:
   '''
     If bitly cannot be loaded do not shorten URLs

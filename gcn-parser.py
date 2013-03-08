@@ -12,8 +12,8 @@
 # Load needed modules
 ################################################################################
 try:
-  import sys, re, time
-  from os import environ, remove, path, _exit, makedirs, stat
+  import sys, re, time, logging
+  from os import environ, path, _exit, makedirs, stat
   from subprocess import call, STDOUT
   pathname = path.dirname(sys.argv[0])
 except:
@@ -28,8 +28,7 @@ try:
     except:
       print 'Failed to load ElementTree'
       _exit(-1)
-  from gcn_dbinterface import gcncurs, gcndbconn, gcndbname, \
-    gcndbstruct, MakeEntry, gcninfo, AddGCN
+  from gcn_dbinterface import GetConfig, AddGCN, gcninfo
   # Home directory
   homedir = environ['HOME']
   # stop if something looks wrong
@@ -38,76 +37,13 @@ except:
   _exit(-1)
 
 ################################################################################
-# Generic Settings
-################################################################################
-# Get log file name
-try:
-  gcnlog = environ['GCNLOG']
-except:
-  gcnlog = '%s/logs/gcn-parser.log'%homedir
-
-try:
-  gcnalerts = environ['GCNALERTS']
-except:
-  gcnalerts = None
-
-curtime = time.strftime('%Y-%m-%d %H:%M:%S')
-################################################################################
-# Lock file checking
-################################################################################
-# Get lock file name
-try:
-  gcnlock = environ['GCNLOCK']
-except:
-  gcnlock = '%s/.gcnlock'%homedir
-
-# Check that the lock file is not set
-try:
-  lock = open(gcnlock, 'r')
-  lock.close()
-  print "Already running...\n"
-  _exit(-1)
-except:
-  lock = open(gcnlock, 'w')
-  lock.write('on')
-  lock.close()
-
-################################################################################
-# LOG FILE CONFIGURATION
-################################################################################
-# Log file name
-# Setup log
-try:
-  log = open(gcnlog, 'a')
-  print '%s: Log file: %s\n'%(curtime,gcnlog)
-except:
-  print '%s: Cannot open log file: %s\n'%(curtime,gcnlog)
-  log = sys.stdout
-
-################################################################################
 # Useful functions
 ################################################################################
 def easy_exit(eval):
   '''
     Function to clean up before exiting and exiting itself
   '''
-  gcndbconn.commit()
-  try:
-    lock = open(gcnlock, 'r')
-    lock.close()
-    remove(gcnlock)
-    try:
-      lock = open(gcnlock, 'r')
-      lock.close()
-      log.write('%s : The lock is still here...'%curtime)
-    except:
-      good = True
-  finally:
-    try:
-      log.close()
-    except:
-      _exit(eval)
-    _exit(eval)
+  _exit(eval)
 
 def dircheck(dir):
   '''
@@ -197,100 +133,141 @@ def IsNotGRB(groups):
     return GetParam(gparams,'Def_NOT_a_GRB')
   return None
 
+if __name__ == "__main__":
+  ################################################################################
+  # Generic Settings
+  ################################################################################
+  # GCN database
+  try:
+    gcnbfname = environ['GCNDB']
+  except:
+    gcnbfname = '%s/gcns.db'%homedir
+  try:
+    gcndbname = environ['GCNDBNAME']
+  except:
+    gcndbname = "gcns"
+
+  # Get log file name
+  try:
+    gcnlog = environ['GCNLOG']
+  except:
+    gcnlog = '%s/logs/gcn-parser.log'%homedir
+
+  try:
+    gcnalerts = environ['GCNALERTS']
+  except:
+    gcnalerts = None
+
+  curtime = time.strftime('%Y-%m-%d %H:%M:%S')
+
+  ################################################################################
+  # LOG FILE CONFIGURATION
+  ################################################################################
+  # Log file name
+  # Setup log
+  logging.basicConfig(filename=gcnlog,\
+                      format='%(asctime)s %(levelname)s: %(message)s',\
+                      filemode='a', level=logging.DEBUG)
+
+  ################################################################################
+  # Get Database
+  ################################################################################
+  try:
+    dbcfg = GetConfig(gcnbfname,gcndbname)
+  except:
+    logging.error('Could not read %s'%gcndbname)
+    easy_exit(-2)
+  ################################################################################
+  # Read in data
+  ################################################################################
+  # Read in data from standard input
+  indata = sys.stdin.read()
+  # Parse the input
+  try:
+    xroot = ET.fromstring(indata)
+  except:
+    logging.error('Malformed XML (no root)')
+    easy_exit(-2)
 
 
-################################################################################
-# Read in data
-################################################################################
-# Read in data from standard input
-indata = sys.stdin.read()
-# Parse the input
-try:
-  xroot = ET.fromstring(indata)
-except:
-  log.write('%s: Malformed XML (no root)\n'%(curtime))
-  easy_exit(-2)
+  what = xroot.find('What')
+  wparams = what.findall('Param')
+  wgroups = what.findall('Group')
+  wherewhen = xroot.find('WhereWhen')
+
+  if what == None:
+    logging.error('Malformed XML (no What)')
+    easy_exit(-2)
+  if wparams == None:
+    logging.error('Malformed XML (no What Params)')
+    easy_exit(-2)
+  if wgroups == None:
+    logging.error('Malformed XML (no What Groups')
+    easy_exit(-2)
+  if wherewhen == None:
+    logging.error('Malformed XML (no WhereWhen)')
+    easy_exit(-2)
+
+  newgcn = gcninfo()
+  try:
+    newgcn.trigid = GetParam(wparams,'TrigID')
+    tinfo = ParseWhereWhen(wherewhen)
+    newgcn.datestr = tinfo['time']
+    newgcn.isnotgrb = IsNotGRB(wgroups)
+    newgcn.posunit = tinfo['unit']
+    newgcn.ra = tinfo['RA']
+    newgcn.dec = tinfo['Dec']
+    newgcn.error = tinfo['error']
+    newgcn.inten = GetParam(wparams,'Burst_Inten')
+    newgcn.intenunit = GetParam(wparams,'Burst_Inten','unit')
+    newgcn.mesgtype = what.find('Description').text
+    # derived
+    newgcn.sent = 0
+    lcmesgtype = newgcn.mesgtype.lower()
+    if lcmesgtype.find('fermi') >= 0:
+      if lcmesgtype.find('fermi-lat') >= 0:
+        newgcn.inst = "Fermi-LAT"
+      elif lcmesgtype.find('fermi-gbm') >= 0:
+        newgcn.inst = "Fermi-GBM"
+      else:
+        newgcn.inst = "Fermi"
+    elif lcmesgtype.find('swift') >= 0:
+      if lcmesgtype.find('swift-uvot') >= 0:
+        newgcn.inst = "Swift-UVOT"
+      elif lcmesgtype.find('swift-xrt') >= 0:
+        newgcn.inst = "Swift-XRT"
+      elif lcmesgtype.find('swift-bat') >= 0:
+        newgcn.inst = "Swift-BAT"
+      else:
+        newgcn.inst = "Swift"
+    elif lcmesgtype.find('integral') >= 0:
+      newgcn.inst = "Integral"
+    elif lcmesgtype.find('maxi') >= 0:
+      newgcn.inst = "MAXI"
+    elif lcmesgtype.find('icn') >= 0:
+      newgcn.inst = "ICN"
+    newgcn.updated = 1
+
+  except:
+    logging.error('Malformed XML')
+    easy_exit(-2)
 
 
-what = xroot.find('What')
-wparams = what.findall('Param')
-wgroups = what.findall('Group')
-wherewhen = xroot.find('WhereWhen')
+  id, status = AddGCN(newgcn,dbcfg)
+  # Close DB connections
+  dbcfg.gcncurs.close()
+  dbcfg.gcndbconn.commit()
+  if status == 0:
+    logging.error('Failed to add new GCN:%s %s'%(newgcn.inst,newgcn.trigid))
+    gcnalerts = None
+  else:
+    logging.info('GCN:%s %s'%(newgcn.inst,newgcn.trigid))
 
-if what == None:
-  log.write('%s: Malformed XML (no What)\n'%(curtime))
-  easy_exit(-2)
-if wparams == None:
-  log.write('%s: Malformed XML (no What Params)\n'%(curtime))
-  easy_exit(-2)
-if wgroups == None:
-  log.write('%s: Malformed XML (no What Groups\n'%(curtime))
-  easy_exit(-2)
-if wherewhen == None:
-  log.write('%s: Malformed XML (no WhereWhen)\n'%(curtime))
-  easy_exit(-2)
+  if gcnalerts != None:
+    logging.info('Updating Site')
+    call(['%s/site-alerter.py'%pathname],stdout=log,stderr=STDOUT)
 
-newgcn = gcninfo()
-try:
-  newgcn.trigid = GetParam(wparams,'TrigID')
-  tinfo = ParseWhereWhen(wherewhen)
-  newgcn.datestr = tinfo['time']
-  newgcn.isnotgrb = IsNotGRB(wgroups)
-  newgcn.posunit = tinfo['unit']
-  newgcn.ra = tinfo['RA']
-  newgcn.dec = tinfo['Dec']
-  newgcn.error = tinfo['error']
-  newgcn.inten = GetParam(wparams,'Burst_Inten')
-  newgcn.intenunit = GetParam(wparams,'Burst_Inten','unit')
-  newgcn.mesgtype = what.find('Description').text
-  # derived
-  newgcn.sent = 0
-  lcmesgtype = newgcn.mesgtype.lower()
-  if lcmesgtype.find('fermi') >= 0:
-    if lcmesgtype.find('fermi-lat') >= 0:
-      newgcn.inst = "Fermi-LAT"
-    elif lcmesgtype.find('fermi-gbm') >= 0:
-      newgcn.inst = "Fermi-GBM"
-    else:
-      newgcn.inst = "Fermi"
-  elif lcmesgtype.find('swift') >= 0:
-    if lcmesgtype.find('swift-uvot') >= 0:
-      newgcn.inst = "Swift-UVOT"
-    elif lcmesgtype.find('swift-xrt') >= 0:
-      newgcn.inst = "Swift-XRT"
-    elif lcmesgtype.find('swift-bat') >= 0:
-      newgcn.inst = "Swift-BAT"
-    else:
-      newgcn.inst = "Swift"
-  elif lcmesgtype.find('integral') >= 0:
-    newgcn.inst = "Integral"
-  elif lcmesgtype.find('maxi') >= 0:
-    newgcn.inst = "MAXI"
-  elif lcmesgtype.find('icn') >= 0:
-    newgcn.inst = "ICN"
-
-  gcndbstruct = newgcn.__dbstruct__
-  print '============================================'
-  for cattr in gcndbstruct.keys():
-    print '%s : %s'%(cattr,newgcn.__getattribute__(cattr))
-  print '============================================'
-except:
-  log.write('%s: Malformed XML\n'%(curtime))
-  easy_exit(-2)
-
-
-id, status = AddGCN(newgcn)
-# Close DB connections
-gcncurs.close()
-gcndbconn.commit()
-if status == 0:
-  log.write('%s: Failed to add new GCN:%s %s\n'%(curtime,cgcn.inst,cgcn.trignumraw))
-  gcnalerts = None
-
-if gcnalerts != None:
-  call(['python','%s/site-alerter.py'%pathname],stdout=log,stderr=STDOUT)
-
-easy_exit(0)
+  easy_exit(0)
 
 
 

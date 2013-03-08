@@ -7,27 +7,12 @@
 #  Copyright 2011 Brian Baughman. All rights reserved.
 ################################################################################
 try:
-  import sys, re, time
+  import sys, re
   from sql_interface import *
   from os import environ, _exit
 except:
   _exit(-1)
-################################################################################
-# Configuration options
-# Set time
-curtime = time.strftime('%Y-%m-%d %H:%M:%S Z',time.gmtime())
-# Home directory
-homedir = environ['HOME']
 
-# GCN database
-try:
-  gcnbfname = environ['GCNDB']
-except:
-  gcnbfname = '%s/gcns.db'%homedir
-try:
-  gcndbname = environ['GCNDBNAME']
-except:
-  gcndbname = "gcns"
 
 ################################################################################
 # Class used for storing GCNs with default values.
@@ -49,87 +34,105 @@ class gcninfo(baseentry):
     # Derived
     self.sent = 0
     self.inst = "unset"
+    self.updated = 0
     self.setDBType()
 
 
 ################################################################################
 # SQLITE CONFIGURATION
 ################################################################################
-# DB interface formats
-gcndbtblck = "SELECT name FROM sqlite_master WHERE type='table' AND name='%s';"%gcndbname
-
-# Get default structure
-tmpgcnentry = gcninfo()
-gcndbstruct = tmpgcnentry.__dbstruct__
-# Connect to DB
-try:
-  gcndbconn = connect(gcnbfname)
-  gcncurs = gcndbconn.cursor()
-  gcncurs.execute(gcndbtblck)
-  dbtblstate = gcncurs.fetchone()
-  if dbtblstate == None:
-    dbctbl = GetDBStr(gcndbname,gcndbstruct)
-    gcncurs.execute(dbctbl)
-    gcndbconn.commit()
-except:
-  _exit(-4)
-
-# Update strcture if DB is different
-gcndbstruct = GetDBStruct(gcncurs,gcndbname)
-################################################################################
-
-# Construct check string
-#
+# Keys to match on 
 gcnchkkeys = ["trigid",
-                "datestr"]
-gcnchkstruct = {}
-for cattr in gcnchkkeys:
-  gcnchkstruct[cattr] = gcndbstruct[cattr]
-gcnckstr = GetCheckStr(gcndbname,gcnchkstruct)
-
-# Construct insert string
-gcninststr = GetInsertStr(gcndbname,gcndbstruct)
-
-
+              "datestr"]
+# Keys to update
 gcnupkeys = [ "isnotgrb",
-              "posunit",
-              "ra","dec","error",
-              "inten", "intenunit",
-              "mesgtype"]
-gcnupstruct = {}
-for cattr in gcnupkeys:
-  gcnupstruct[cattr] = gcndbstruct[cattr]
+             "posunit",
+             "ra","dec","error",
+             "inten", "intenunit",
+             "mesgtype"]
 
-def UpdateGCN(newEntry,id):
-  ustr = "UPDATE %s SET "%(gcndbname)
-  first = True
+class gcndbcfg:
+  def __init__(self):
+    self.gcndbname = None
+    self.gcndbtblck = None
+    self.gcndbconn = None
+    self.gcncurs  = None
+    self.gcndbstruct = None
+    self.gcnchkstruct = None
+    self.gcnckstr = None
+    self.gcninststr = None
+    self.gcnupstruct = None
+
+def GetConfig(gcnbfname,gcndbname):
+  '''
+    Returns configuration for given DB
+  '''
+  rcfg = gcndbcfg()
+  rcfg.gcndbname = gcndbname
+  # DB interface formats
+  rcfg.gcndbtblck = "SELECT name FROM sqlite_master WHERE type='table' AND name='%s';"%rcfg.gcndbname
+
+  # Get default structure
+  tmpgcnentry = gcninfo()
+  gcndbstruct = tmpgcnentry.__dbstruct__
+  # Connect to DB
+  try:
+    rcfg.gcndbconn = connect(gcnbfname)
+    rcfg.gcncurs = rcfg.gcndbconn.cursor()
+    rcfg.gcncurs.execute(rcfg.gcndbtblck)
+    dbtblstate = rcfg.gcncurs.fetchone()
+    if dbtblstate == None:
+      dbctbl = GetDBStr(rcfg.gcndbname,gcndbstruct)
+      rcfg.gcncurs.execute(dbctbl)
+      rcfg.gcndbconn.commit()
+  except:
+    None
+
+  # Update strcture if DB is different
+  rcfg.gcndbstruct = GetDBStruct(rcfg.gcncurs,rcfg.gcndbname)
+  ################################################################################
+
+  # Construct check string
+  #
+
+  rcfg.gcnchkstruct = {}
+  for cattr in gcnchkkeys:
+    rcfg.gcnchkstruct[cattr] = rcfg.gcndbstruct[cattr]
+  rcfg.gcnckstr = GetCheckStr(rcfg.gcndbname,rcfg.gcnchkstruct)
+
+  # Construct insert string
+  rcfg.gcninststr = GetInsertStr(rcfg.gcndbname,rcfg.gcndbstruct)
+
+  rcfg.gcnupstruct = {}
   for cattr in gcnupkeys:
-    if first:
-      ustr += '%s=\'%s\''%(cattr,newEntry.__getattribute__(cattr))
-      first = False
-    else:
-      ustr += ', %s=\'%s\''%(cattr,newEntry.__getattribute__(cattr))
+    rcfg.gcnupstruct[cattr] = rcfg.gcndbstruct[cattr]
+  return rcfg
+
+def UpdateGCN(newEntry,id,cfg):
+  ustr = "UPDATE %s SET updated=1 "%(cfg.gcndbname)
+  for cattr in gcnupkeys:
+    ustr += ', %s=\'%s\''%(cattr,newEntry.__getattribute__(cattr))
   ustr += ' WHERE id=%i'%id
-  gcncurs.execute(ustr)
-  gcndbconn.commit()
+  cfg.gcncurs.execute(ustr)
+  cfg.gcndbconn.commit()
   return 0
 
-def AddGCN(newEntry):
-  carr = [ newEntry.__getattribute__(cattr) for cattr in gcnchkstruct.keys()]
-  ckstr = gcnckstr%tuple(carr)
-  gcncurs.execute(ckstr)
-  mtchs = gcncurs.fetchall()
+def AddGCN(newEntry,cfg):
+  carr = [ newEntry.__getattribute__(cattr) for cattr in cfg.gcnchkstruct.keys()]
+  ckstr = cfg.gcnckstr%tuple(carr)
+  cfg.gcncurs.execute(ckstr)
+  mtchs = cfg.gcncurs.fetchall()
   if len(mtchs) == 0:
-    carr = [newEntry.__getattribute__(cattr) for cattr in gcndbstruct.keys() ]
-    cintstr = gcninststr%tuple(carr)
-    gcncurs.execute(cintstr)
-    gcndbconn.commit()
-    gcncurs.execute("select last_insert_rowid()")
-    retval = gcncurs.fetchall()
+    carr = [newEntry.__getattribute__(cattr) for cattr in cfg.gcndbstruct.keys() ]
+    cintstr = cfg.gcninststr%tuple(carr)
+    cfg.gcncurs.execute(cintstr)
+    cfg.gcndbconn.commit()
+    cfg.gcncurs.execute("select last_insert_rowid()")
+    retval = cfg.gcncurs.fetchall()
     njid = retval[0][0]
     return njid, 1
   elif len(mtchs) == 1:
     # update entry
-    UpdateGCN(newEntry,mtchs[-1][gcndbstruct['id']['index']])
-    return -1*mtchs[-1][gcndbstruct['id']['index']], -1
+    UpdateGCN(newEntry,mtchs[-1][cfg.gcndbstruct['id']['index']],cfg)
+    return -1*mtchs[-1][cfg.gcndbstruct['id']['index']], -1
   return -1, 0
