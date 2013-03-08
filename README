@@ -9,6 +9,10 @@ Included files:
 * README : this file
 * gcn_parser.py : File which is run upon the arrival of an email
 * gcn_dbinterface.py : Module which defines the database structure
+* bitly.py : Shortens URLs using bit.ly
+* sql_interface.py : Basic interface to sqlite
+* site-alerter.py : Builds an XML file and images for each GCN
+* site-alerter-daemon.py : Runs site-alerter periodically.
 
 Environment
 ===========
@@ -26,6 +30,8 @@ Required python modules:
 * matplotlib
 * ephem
 * urllib2 [for shortening not required]
+### site-alerter-daemon ###
+* daemon
 
 Expected environmental variables:
 ---------------------------------
