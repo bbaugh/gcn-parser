@@ -27,7 +27,6 @@ try:
       _exit(-1)
   import smtplib
   from email import MIMEText
-  from gcn_dbinterface import GetConfig, MakeEntry, gcninfo
   import matplotlib
   matplotlib.use('agg')
   from matplotlib import dates as mpldates
@@ -65,15 +64,7 @@ if not access('%s/site-alerter.py'%pathname,X_OK):
 ################################################################################
 # Environment Setup
 ################################################################################
-# GCN database
-try:
-  gcnbfname = environ['GCNDB']
-except:
-  gcnbfname = '%s/gcns.db'%homedir
-try:
-  gcndbname = environ['GCNDBNAME']
-except:
-  gcndbname = "gcns"
+
 
 try:
   gcndaemonlog = environ['GCNDAEMONLOG']
@@ -84,7 +75,15 @@ try:
   gcndaemonlock = environ['GCNDAEMONLOCK']
 except:
   gcndaemonlock = '/tmp/site-alerter-daemon.lock'
-# GCN database
+
+# Server hosting GCN DB and web content
+try:
+  gcndbsrv = environ['GCNDBSRV']
+except:
+  print 'GCNDBSRV is not defined!'
+  _exit(-2)
+
+# Location of GCN database on GCNDBSRV
 try:
   gcndbosrv = environ['GCNDBOSRV']
 except:
@@ -93,31 +92,14 @@ except:
 
 gcndbfname = path.basename(gcndbosrv)
 
+# Location of web content on GCNDBSRV
 try:
   gcnwebosrv = environ['GCNWEBOSRV']
 except:
   print 'GCNWEBOSRV is not defined!'
   _exit(-2)
 
-try:
-  gcndbsrv = environ['GCNDBSRV']
-except:
-  print 'GCNDBSRV is not defined!'
-  _exit(-2)
 
-# Get web base
-try:
-  gcnhttp = environ['GCNHTTP']
-except:
-  print 'GCNHTTP not set!'
-  _exit(-2)
-
-# GCNSMTP
-try:
-  gcnsmtp = environ['GCNSMTP']
-except:
-  print 'GCNSMTP not set!'
-  _exit(-2)
 
 try:
   gcnweb = environ['GCNWEB']
@@ -148,6 +130,9 @@ class App():
     self.Check()
 
   def UpdateDB(self):
+    '''
+      Updates the local copy of the GCN DB
+    '''
     devnullfobj = open(devnull,'w')
     call(['rsync','-azq','%s:%s'%(gcndbsrv,gcndbosrv),'%s/'%gcnweb],\
          stdout=devnullfobj,stderr=devnullfobj)
@@ -159,10 +144,16 @@ class App():
         self.buildsite = True
   
   def SiteAlerter(self):
+    '''
+      Calls site-alerter.py
+    '''
     call(['%s/site-alerter.py'%pathname])
 
 
   def PushBack(self):
+    '''
+      Pushes generated web content back to DB server
+    '''
     devnullfobj = open(devnull,'w')
     call(['rsync','-azq','--exclude=%s'%gcndbfname,\
           '%s/'%gcnweb,\
@@ -173,7 +164,7 @@ class App():
   def Check(self):
     '''
       Function which calls itself every interval
-      '''
+    '''
     self.UpdateDB()
     if self.buildsite:
       self.SiteAlerter()

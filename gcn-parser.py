@@ -28,7 +28,7 @@ try:
     except:
       print 'Failed to load ElementTree'
       _exit(-1)
-  from gcn_dbinterface import GetConfig, AddGCN, gcninfo
+  from gcn_dbinterface import GetGCNConfig, AddGCN, gcninfo
   # Home directory
   homedir = environ['HOME']
   # stop if something looks wrong
@@ -36,13 +36,40 @@ except:
   print 'Failed to load modules'
   _exit(-1)
 
+##############################################################################
+# Generic Settings
+##############################################################################
+# link to Swift gcn page
+swiftgcnlink="http://j.mp/swiftgcns"
+# link to Fermi gcn page
+fermigcnlink="http://j.mp/fermigcns"
+# link to Agile gcn page
+agilegcnlink="http://j.mp/agilegcns"
+# link to Integral gcn page
+integralgcnlink="http://j.mp/integralgcns"
+# link to Maxi gcn page
+maxigcnlink="http://j.mp/maxigcns"
+# link to KONUS gcn page
+konusgcnlink = "http://j.mp/konusgcns"
+# link to ICN gcn page
+icngcnlink="http://j.mp/icngcns"
+
 ################################################################################
 # Useful functions
 ################################################################################
-def easy_exit(eval):
+def easy_exit(eval,dbcfgs):
   '''
     Function to clean up before exiting and exiting itself
-  '''
+    '''
+  if dbcfgs != None:
+    nfailed = 0
+    for dbcfg in dbcfgs:
+      try:
+        # Close DB connections
+        dbcfg.curs.close()
+        dbcfg.dbconn.commit()
+      except:
+        nfailed += 1
   _exit(eval)
 
 def dircheck(dir):
@@ -139,9 +166,9 @@ if __name__ == "__main__":
   ################################################################################
   # GCN database
   try:
-    gcnbfname = environ['GCNDB']
+    gcndbfname = environ['GCNDB']
   except:
-    gcnbfname = '%s/gcns.db'%homedir
+    gcndbfname = '%s/gcns.db'%homedir
   try:
     gcndbname = environ['GCNDBNAME']
   except:
@@ -158,7 +185,6 @@ if __name__ == "__main__":
   except:
     gcnalerts = None
 
-  curtime = time.strftime('%Y-%m-%d %H:%M:%S')
 
   ################################################################################
   # LOG FILE CONFIGURATION
@@ -170,49 +196,57 @@ if __name__ == "__main__":
                       filemode='a', level=logging.DEBUG)
 
   ################################################################################
-  # Get Database
+  # Get GCN Database
   ################################################################################
   try:
-    dbcfg = GetConfig(gcnbfname,gcndbname)
+    dbcfg = GetGCNConfig(gcndbfname,gcndbname)
   except:
     logging.error('Could not read %s'%gcndbname)
-    easy_exit(-2)
+    easy_exit(-2,None)
+  if dbcfg == None:
+    logging.info('GCN DB failed to initialize.')
+    easy_exit(-1,[dbcfg])
   ################################################################################
   # Read in data
   ################################################################################
   # Read in data from standard input
   indata = sys.stdin.read()
+  xmlstart = indata.find('<?xml')
   # Parse the input
   try:
-    xroot = ET.fromstring(indata)
+    xroot = ET.fromstring(indata[xmlstart:])
   except:
     logging.error('Malformed XML (no root)')
-    easy_exit(-2)
+    easy_exit(-2,[dbcfg])
 
 
   what = xroot.find('What')
   wparams = what.findall('Param')
   wgroups = what.findall('Group')
   wherewhen = xroot.find('WhereWhen')
+  who = xroot.find('Who')
 
   if what == None:
     logging.error('Malformed XML (no What)')
-    easy_exit(-2)
+    easy_exit(-2,[dbcfg])
   if wparams == None:
     logging.error('Malformed XML (no What Params)')
-    easy_exit(-2)
+    easy_exit(-2,[dbcfg])
   if wgroups == None:
     logging.error('Malformed XML (no What Groups')
-    easy_exit(-2)
+    easy_exit(-2,[dbcfg])
   if wherewhen == None:
     logging.error('Malformed XML (no WhereWhen)')
-    easy_exit(-2)
+    easy_exit(-2,[dbcfg])
+  if who == None:
+    logging.error('Malformed XML (no Who)')
+    easy_exit(-2,[dbcfg])
 
   newgcn = gcninfo()
   try:
     newgcn.trigid = GetParam(wparams,'TrigID')
     tinfo = ParseWhereWhen(wherewhen)
-    newgcn.datestr = tinfo['time']
+    newgcn.trig_date = tinfo['time']
     newgcn.isnotgrb = IsNotGRB(wgroups)
     newgcn.posunit = tinfo['unit']
     newgcn.ra = tinfo['RA']
@@ -221,42 +255,36 @@ if __name__ == "__main__":
     newgcn.inten = GetParam(wparams,'Burst_Inten')
     newgcn.intenunit = GetParam(wparams,'Burst_Inten','unit')
     newgcn.mesgtype = what.find('Description').text
+    newgcn.updated_date = who.find('Date').text
     # derived
-    newgcn.sent = 0
     lcmesgtype = newgcn.mesgtype.lower()
     if lcmesgtype.find('fermi') >= 0:
-      if lcmesgtype.find('fermi-lat') >= 0:
-        newgcn.inst = "Fermi-LAT"
-      elif lcmesgtype.find('fermi-gbm') >= 0:
-        newgcn.inst = "Fermi-GBM"
-      else:
-        newgcn.inst = "Fermi"
+      newgcn.inst = "Fermi"
+      newgcn.link = fermigcnlink
     elif lcmesgtype.find('swift') >= 0:
-      if lcmesgtype.find('swift-uvot') >= 0:
-        newgcn.inst = "Swift-UVOT"
-      elif lcmesgtype.find('swift-xrt') >= 0:
-        newgcn.inst = "Swift-XRT"
-      elif lcmesgtype.find('swift-bat') >= 0:
-        newgcn.inst = "Swift-BAT"
-      else:
-        newgcn.inst = "Swift"
+      newgcn.inst = "Swift"
+      newgcn.link = swiftgcnlink
     elif lcmesgtype.find('integral') >= 0:
       newgcn.inst = "Integral"
+      newgcn.link = integralgcnlink
     elif lcmesgtype.find('maxi') >= 0:
       newgcn.inst = "MAXI"
-    elif lcmesgtype.find('icn') >= 0:
-      newgcn.inst = "ICN"
-    newgcn.updated = 1
-
+      newgcn.link = maxigcnlink
+    elif lcmesgtype.find('konus') >= 0:
+      newgcn.inst = "KONUS"
+      newgcn.link = konusgcnlink
+    elif lcmesgtype.find('ipn') >= 0:
+      newgcn.inst = "IPN"
+      newgcn.link = ipngcnlink
   except:
     logging.error('Malformed XML')
-    easy_exit(-2)
+    easy_exit(-2,[dbcfg])
 
 
   id, status = AddGCN(newgcn,dbcfg)
   # Close DB connections
-  dbcfg.gcncurs.close()
-  dbcfg.gcndbconn.commit()
+  dbcfg.curs.close()
+  dbcfg.dbconn.commit()
   if status == 0:
     logging.error('Failed to add new GCN:%s %s'%(newgcn.inst,newgcn.trigid))
     gcnalerts = None
@@ -267,7 +295,7 @@ if __name__ == "__main__":
     logging.info('Updating Site')
     call(['%s/site-alerter.py'%pathname],stdout=log,stderr=STDOUT)
 
-  easy_exit(0)
+  easy_exit(0,[dbcfg])
 
 
 

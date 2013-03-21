@@ -113,6 +113,69 @@ def GetCheckStr(dbname,dbstruct):
     carr.append("%s=%s"%(cattr,dbstruct[cattr]['fmt']))
   return unicode("SELECT * FROM %s WHERE %s;"%(dbname,' and '.join(carr)))
 
+
+
+class dbcfg:
+  def __init__(self):
+    self.dbname = None
+    self.dbtblck = None
+    self.dbconn = None
+    self.curs  = None
+    self.dbstruct = None
+    self.chkstruct = None
+    self.ckstr = None
+    self.inststr = None
+    self.upstruct = None
+
+def GetConfig(dbfname,dbname,entry,upkeys=None,chkkeys=None):
+  '''
+    Returns configuration for given DB
+  '''
+  rcfg = dbcfg()
+  rcfg.dbname = dbname
+  # DB interface formats
+  rcfg.dbtblck = "SELECT name FROM sqlite_master WHERE type='table' AND name='%s';"%rcfg.dbname
+  
+
+  # Connect to DB
+  try:
+    rcfg.dbconn = connect(dbfname)
+    rcfg.curs = rcfg.dbconn.cursor()
+    rcfg.curs.execute(rcfg.dbtblck)
+    dbtblstate = rcfg.curs.fetchone()
+    if dbtblstate == None:
+      # Get default structure
+      newEntry = entry()
+      dbstruct = newEntry.__dbstruct__
+      # Make new DB
+      dbctbl = GetDBStr(rcfg.dbname,dbstruct)
+      rcfg.curs.execute(dbctbl)
+      rcfg.dbconn.commit()
+  except:
+    return None
+  
+  # Update strcture if DB is different
+  rcfg.dbstruct = GetDBStruct(rcfg.curs,rcfg.dbname)
+  ################################################################################
+  
+  # Construct check string
+  #
+  
+  rcfg.chkstruct = {}
+  if  chkkeys != None:
+    for cattr in chkkeys:
+      rcfg.chkstruct[cattr] = rcfg.dbstruct[cattr]
+    rcfg.ckstr = GetCheckStr(rcfg.dbname,rcfg.chkstruct)
+  
+  # Construct insert string
+  rcfg.inststr = GetInsertStr(rcfg.dbname,rcfg.dbstruct)
+  
+  rcfg.upstruct = {}
+  if upkeys != None:
+    for cattr in upkeys:
+      rcfg.upstruct[cattr] = rcfg.dbstruct[cattr]
+  return rcfg
+
 def Check(curs,dbname,curEntry):
   carr = []
   for cattr in curEntry.__dbkeys__:

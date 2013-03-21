@@ -7,7 +7,7 @@
 #  Copyright 2011 Brian Baughman. All rights reserved.
 ################################################################################
 try:
-  import sys, re
+  import sys, re, datetime
   from sql_interface import *
   from os import environ, _exit
 except:
@@ -22,7 +22,8 @@ class gcninfo(baseentry):
     self.id = "null"
     # Read directly
     self.trigid = "unset"
-    self.datestr = "unset"
+    self.trig_date = "unset"
+    self.updated_date = "unset"
     self.isnotgrb = "unset"
     self.posunit = "unset"
     self.ra = "unset"
@@ -32,9 +33,8 @@ class gcninfo(baseentry):
     self.intenunit = "unset"
     self.mesgtype = "unset"
     # Derived
-    self.sent = 0
     self.inst = "unset"
-    self.updated = 0
+    self.link = "unset"
     self.setDBType()
 
 
@@ -43,7 +43,7 @@ class gcninfo(baseentry):
 ################################################################################
 # Keys to match on 
 gcnchkkeys = ["trigid",
-              "datestr"]
+              "trig_date"]
 # Keys to update
 gcnupkeys = [ "isnotgrb",
              "posunit",
@@ -51,88 +51,45 @@ gcnupkeys = [ "isnotgrb",
              "inten", "intenunit",
              "mesgtype"]
 
-class gcndbcfg:
-  def __init__(self):
-    self.gcndbname = None
-    self.gcndbtblck = None
-    self.gcndbconn = None
-    self.gcncurs  = None
-    self.gcndbstruct = None
-    self.gcnchkstruct = None
-    self.gcnckstr = None
-    self.gcninststr = None
-    self.gcnupstruct = None
-
-def GetConfig(gcnbfname,gcndbname):
-  '''
-    Returns configuration for given DB
-  '''
-  rcfg = gcndbcfg()
-  rcfg.gcndbname = gcndbname
-  # DB interface formats
-  rcfg.gcndbtblck = "SELECT name FROM sqlite_master WHERE type='table' AND name='%s';"%rcfg.gcndbname
-
-  # Get default structure
-  tmpgcnentry = gcninfo()
-  gcndbstruct = tmpgcnentry.__dbstruct__
-  # Connect to DB
-  try:
-    rcfg.gcndbconn = connect(gcnbfname)
-    rcfg.gcncurs = rcfg.gcndbconn.cursor()
-    rcfg.gcncurs.execute(rcfg.gcndbtblck)
-    dbtblstate = rcfg.gcncurs.fetchone()
-    if dbtblstate == None:
-      dbctbl = GetDBStr(rcfg.gcndbname,gcndbstruct)
-      rcfg.gcncurs.execute(dbctbl)
-      rcfg.gcndbconn.commit()
-  except:
-    None
-
-  # Update strcture if DB is different
-  rcfg.gcndbstruct = GetDBStruct(rcfg.gcncurs,rcfg.gcndbname)
-  ################################################################################
-
-  # Construct check string
-  #
-
-  rcfg.gcnchkstruct = {}
-  for cattr in gcnchkkeys:
-    rcfg.gcnchkstruct[cattr] = rcfg.gcndbstruct[cattr]
-  rcfg.gcnckstr = GetCheckStr(rcfg.gcndbname,rcfg.gcnchkstruct)
-
-  # Construct insert string
-  rcfg.gcninststr = GetInsertStr(rcfg.gcndbname,rcfg.gcndbstruct)
-
-  rcfg.gcnupstruct = {}
-  for cattr in gcnupkeys:
-    rcfg.gcnupstruct[cattr] = rcfg.gcndbstruct[cattr]
-  return rcfg
+def GetGCNConfig(dbfname,dbname):
+  return GetConfig(dbfname,dbname,gcninfo,gcnupkeys,gcnchkkeys)
 
 def UpdateGCN(newEntry,id,cfg):
-  ustr = "UPDATE %s SET updated=1 "%(cfg.gcndbname)
+  ustr = "UPDATE %s SET updated_date='%s' "%(cfg.dbname,newEntry.updated_date)
   for cattr in gcnupkeys:
     ustr += ', %s=\'%s\''%(cattr,newEntry.__getattribute__(cattr))
   ustr += ' WHERE id=%i'%id
-  cfg.gcncurs.execute(ustr)
-  cfg.gcndbconn.commit()
+  cfg.curs.execute(ustr)
+  cfg.dbconn.commit()
   return 0
 
 def AddGCN(newEntry,cfg):
-  carr = [ newEntry.__getattribute__(cattr) for cattr in cfg.gcnchkstruct.keys()]
-  ckstr = cfg.gcnckstr%tuple(carr)
-  cfg.gcncurs.execute(ckstr)
-  mtchs = cfg.gcncurs.fetchall()
+  carr = [ newEntry.__getattribute__(cattr) for cattr in cfg.chkstruct.keys()]
+  ckstr = cfg.ckstr%tuple(carr)
+  cfg.curs.execute(ckstr)
+  mtchs = cfg.curs.fetchall()
   if len(mtchs) == 0:
-    carr = [newEntry.__getattribute__(cattr) for cattr in cfg.gcndbstruct.keys() ]
-    cintstr = cfg.gcninststr%tuple(carr)
-    cfg.gcncurs.execute(cintstr)
-    cfg.gcndbconn.commit()
-    cfg.gcncurs.execute("select last_insert_rowid()")
-    retval = cfg.gcncurs.fetchall()
+    carr = [newEntry.__getattribute__(cattr) for cattr in cfg.dbstruct.keys() ]
+    cintstr = cfg.inststr%tuple(carr)
+    cfg.curs.execute(cintstr)
+    cfg.dbconn.commit()
+    cfg.curs.execute("select last_insert_rowid()")
+    retval = cfg.curs.fetchall()
     njid = retval[0][0]
+    print "Adding %s (%s)"%(newEntry.trig_date,newEntry.updated_date)
     return njid, 1
   elif len(mtchs) == 1:
-    # update entry
-    UpdateGCN(newEntry,mtchs[-1][cfg.gcndbstruct['id']['index']],cfg)
-    return -1*mtchs[-1][cfg.gcndbstruct['id']['index']], -1
+    # update entry if newer than already logged
+    oldEntry = MakeEntry(mtchs[0],gcninfo,cfg.dbstruct)
+    oT = str(oldEntry.updated_date).replace('T',' ')
+    oTo = datetime.datetime.strptime(oT,'%Y-%m-%d %H:%M:%S')
+    nT = str(newEntry.updated_date).replace('T',' ')
+    nTo = datetime.datetime.strptime(nT,'%Y-%m-%d %H:%M:%S')
+    dT = (nTo - oTo)
+    if dT > datetime.timedelta(seconds = 0):
+      UpdateGCN(newEntry,mtchs[0][cfg.dbstruct['id']['index']],cfg)
+      print "Updating %s (%s - %s = %i)"%(newEntry.trig_date,newEntry.updated_date,oldEntry.updated_date, dT.total_seconds())
+    else:
+      print "NOT Updating %s (%s - %s = %i)"%(newEntry.trig_date,newEntry.updated_date,oldEntry.updated_date,dT.total_seconds())
+    return -1*mtchs[-1][cfg.dbstruct['id']['index']], -1
   return -1, 0

@@ -2,16 +2,22 @@
 export PYTHONPATH="${HOME}/opt/lib/python2.6/site-packages:${HOME}/devl/gcn-parser"
 
 #----------GCN VARS--------
+ttag="testing"
 export GCNSMTP="umdgrb.umd.edu"
-export GCNHTTP="http://umdgrb.umd.edu/~bbaugh/testing"
-export GCNWEB="${HOME}/public_html/testing"
-export GCNDB="${HOME}/public_html/testing/gcns.db"
+export GCNHTTP="http://umdgrb.umd.edu/~bbaugh/${ttag}"
+export GCNWEB="${HOME}/public_html/${ttag}"
+export GCNDB="${HOME}/public_html/${ttag}/gcns.db"
 export GCNDBNAME="GCNs"
-export GCNDBOSRV="/home/bbaugh/public_html/testing/gcns.db"
+export GCNSITELINK="http://j.mp/hawcgcnwatch"
+export GCNDBOSRV="/home/bbaugh/public_html/${ttag}/gcns.db"
 export GCNDBSRV="umdgrb.umd.edu"
-export GCNWEBOSRV="/home/bbaugh/public_html/testing"
-export GCNDAEMONLOCK="/tmp/site-alerter-daemon.lock"
+export GCNWEBOSRV="/home/bbaugh/public_html/${ttag}"
+export GCNDAEMONLOCK="${HOME}/locks/site-alerter-daemon.lock"
 export SALERTLOG="${HOME}/logs/site-alerter.log"
+export SALERTDB="${HOME}/public_html/${ttag}/alerts.db"
+export SALERTDBNAME="alerts"
+export SALERTCFG="${HOME}/.gcncfg.${ttag}"
+
 script=`basename ${0}`
 case "$1" in
   start)

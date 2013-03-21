@@ -18,26 +18,35 @@ Environment
 ===========
 Required python modules:
 ------------------------
+### bitly ###
+* urllib2 [for shortening not required]
+### sql_interface ###
+* sqlite3 [falls back to sqlite]
 ### gcn_dbinterface ###
-* sqlite3
+* sql_interface [above]
 ### gcn-parser ###
+* gcn_dbinterface [above]
 * xml.etree.ElementTree or elementtree.ElementTree'
 ### site-alerter ###
+* gcn_dbinterface [above]
 * xml.etree.ElementTree or elementtree.ElementTree'
 * numpy
 * smtplib
 * email
 * matplotlib
 * ephem
-* urllib2 [for shortening not required]
+* bitly [above]
 ### site-alerter-daemon ###
 * daemon
 
 Expected environmental variables:
 ---------------------------------
 * HOME : home directory used to set defaults for missing environmental variables
+### bitly ###
+* BITLYAPI : Points to file with two lines: bitly username and bitly API key
+             Default: ${HOME}/.bitlyapi
 ### gcn-parser ###
-* GCNDB : Location of sqlite data base file
+* GCNDB : Location of sqlite GCNs data base file
           Default: $GCNWEB/gcns.db
 * GCNDBNAME : Name of data base within $GCNDB used to store GCNs
               Default: gcns
@@ -46,12 +55,16 @@ Expected environmental variables:
 * GCNALERTS : If set then gcn-parser will call site-alerter
               Default: unset
 ### site-alerter ###
-* BITLYAPI : Points to file with two lines: bitly username and bitly API key
-             Default: ${HOME}/.bitlyapi
-* GCNDB : Location of sqlite data base file
-          Default: $GCNWEB/gcns.db
+* GCNDB : Location of sqlite GCNs data base file
+          Default: $HOME/gcns.db
 * GCNDBNAME : Name of data base within $GCNDB used to store GCNs
               Default: gcns
+* SALERTDB : Location of sqlite alerts data base file
+          Default: $HOME/alerts.db
+* SALERTDBNAME : Name of data base within $SALERTDB used to store alerts
+              Default: alerts
+* SALERTCFG : Configuration file for sending site alerts
+              Default: None
 * SALERTLOG : Log file used
               Default: $HOME/logs/site-alerter.log
 * GCNSITE : Tag used to denote the site
@@ -68,11 +81,33 @@ Expected environmental variables:
             REQUIRED
 * GCNWEB : Base directory to output web page related files
            Default: $HOME/public_html
+* GCNSITELINK : Link to site constructed by site-alerter
+                Default: $GCNHTTP
 * NOUTGCNS : Number of GCNs to output to web page
              Default: 100
+### site-alerter-daemon ###
+* GCNDAEMONLOG : Log file used
+                 Default: $HOME/logs/gcn-daemon.log
+* GCNDAEMONLOCK : Lock file used
+                 Default: /tmp/site-alerter-daemon.lock
+* GCNDBSRV : Server from which to obtain GCNDB and to push generated content
+              REQUIRED
+* GCNDBOSRV : Location of GCNDB on server
+              REQUIRED
+* GCNWEBOSRV : Base directory to output web content (on server)
+               Default: $HOME/public_html
+* GCNWEB : Base directory to output web content (locally)
+           Default: $HOME/public_html
+* GCNINTER : Seconds between updates
+             Default: 60
 
 USAGE
 =====
-Ideally one should pass the contents of an email to this gcn_parser.py via
+Ideally one should pass the contents of an email to this gcn-parser via
 procmail. It will read the data from stdin and process it.
 
+site-alerter, if able, should be run from gcn-parser by setting GCNALERTS. If
+site-alerter cannot run on the same machine as gcn-parser then
+site-alerter-daemon can be used to query the machine running gcn-parser.
+
+site-alerter-daemon assumes that the
