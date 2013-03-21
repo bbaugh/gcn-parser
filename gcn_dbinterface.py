@@ -76,7 +76,6 @@ def AddGCN(newEntry,cfg):
     cfg.curs.execute("select last_insert_rowid()")
     retval = cfg.curs.fetchall()
     njid = retval[0][0]
-    print "Adding %s (%s)"%(newEntry.trig_date,newEntry.updated_date)
     return njid, 1
   elif len(mtchs) == 1:
     # update entry if newer than already logged
@@ -88,8 +87,5 @@ def AddGCN(newEntry,cfg):
     dT = (nTo - oTo)
     if dT > datetime.timedelta(seconds = 0):
       UpdateGCN(newEntry,mtchs[0][cfg.dbstruct['id']['index']],cfg)
-      print "Updating %s (%s - %s = %i)"%(newEntry.trig_date,newEntry.updated_date,oldEntry.updated_date, dT.total_seconds())
-    else:
-      print "NOT Updating %s (%s - %s = %i)"%(newEntry.trig_date,newEntry.updated_date,oldEntry.updated_date,dT.total_seconds())
     return -1*mtchs[-1][cfg.dbstruct['id']['index']], -1
   return -1, 0

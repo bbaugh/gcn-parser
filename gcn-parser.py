@@ -53,6 +53,8 @@ maxigcnlink="http://j.mp/maxigcns"
 konusgcnlink = "http://j.mp/konusgcns"
 # link to ICN gcn page
 icngcnlink="http://j.mp/icngcns"
+# link format
+linkfmt = "http://gcn.gsfc.nasa.gov/other/%s.%s"
 
 ################################################################################
 # Useful functions
@@ -158,7 +160,11 @@ def IsNotGRB(groups):
   gparams = GetGroup(groups,'Solution_Status')
   if gparams != None:
     return GetParam(gparams,'Def_NOT_a_GRB')
-  return None
+  # INTEGRAL
+  gparams = GetGroup(groups,'Test_mpos')
+  if gparams != None:
+    return GetParam(gparams,'Def_NOT_a_GRB')
+  return "unknown"
 
 if __name__ == "__main__":
   ################################################################################
@@ -260,16 +266,16 @@ if __name__ == "__main__":
     lcmesgtype = newgcn.mesgtype.lower()
     if lcmesgtype.find('fermi') >= 0:
       newgcn.inst = "Fermi"
-      newgcn.link = fermigcnlink
+      newgcn.link = linkfmt%(newgcn.trigid,'fermi')
     elif lcmesgtype.find('swift') >= 0:
       newgcn.inst = "Swift"
-      newgcn.link = swiftgcnlink
+      newgcn.link = linkfmt%(newgcn.trigid,'swift')
     elif lcmesgtype.find('integral') >= 0:
       newgcn.inst = "Integral"
-      newgcn.link = integralgcnlink
+      newgcn.link = linkfmt%(newgcn.trigid,'integral')
     elif lcmesgtype.find('maxi') >= 0:
       newgcn.inst = "MAXI"
-      newgcn.link = maxigcnlink
+      newgcn.link = linkfmt%(newgcn.trigid,'maxi')
     elif lcmesgtype.find('konus') >= 0:
       newgcn.inst = "KONUS"
       newgcn.link = konusgcnlink

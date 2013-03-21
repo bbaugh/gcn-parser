@@ -117,7 +117,7 @@ def gettxt(cinfo,curzen,sitetag,sitelink):
                 cinfo.trigid,\
                 sitetag,\
                 curzen,\
-                cinfo.link,\
+                shorten(cinfo.link),\
                 sitelink)
   return txt
 
@@ -437,7 +437,7 @@ if __name__ == "__main__":
         logging.error( 'Failed to update Alert DB.')
 
     if transient.alt > pi*.25 and sentflg == 0:
-      sbjct = sbjctfmt%(curinfo.trig_date,sitetag.capitalize())
+      sbjct = sbjctfmt%(curinfo.trig_date,sitetag)
       txt = gettxt(curinfo,90.-rad2deg(transient.alt),sitetag,sitelink)
       ustr = "UPDATE %s SET sent=1 WHERE id='%s';"%(alertdbcfg.dbname,\
                                                      camtchs[0][a_id])
@@ -464,9 +464,11 @@ if __name__ == "__main__":
     cursubelm = ET.SubElement(curgcn,'%s_zenith'%sitetag)
     cursubelm.text = str(90.-ctalt)
     cursubelm = ET.SubElement(curgcn,'%s_img'%sitetag)
-    cursubelm.text = '<a href="%s"><img alt="Angry face" src="%s"></a>'%(ofname,othbfname)
-
-
+    imgName = path.basename(ofname)
+    thbImgName = path.basename(othbfname)
+    srvImgName = '%s/gcns/%s'%(gcnhttp,imgName)
+    srvThbImgname = '%s/gcns/thumbs/%s'%(gcnhttp,thbImgName)
+    cursubelm.text = '<a href="%s"><img alt="Angry face" src="%s"></a>'%(srvImgName,srvThbImgname)
 
 
   # Save XML
