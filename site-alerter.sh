@@ -2,15 +2,14 @@
 export PYTHONPATH="${HOME}/opt/lib/python2.6/site-packages:${HOME}/devl/gcn-parser"
 
 # ENV VARS #
-ttag="testing"
-export LOGDIR="${HOME}/logs/${ttag}"
+export LOGDIR="${HOME}/logs"
 ## bitly ##
 export BITLYAPI="${HOME}/.bitlyapi"
 ## site-alerter ##
-export GCNDB="${HOME}/public_html/${ttag}/gcns.db"
+export GCNDB="${HOME}/public_html/gcns.db"
 export GCNDBNAME="GCNs"
 ### CONFIG ###
-export SALERTDB="${HOME}/public_html/${ttag}/alerts.db"
+export SALERTDB="${HOME}/public_html/alerts.db"
 export SALERTDBNAME="alerts"
 export SALERTCFG="${HOME}/.site-alerter-cfg"
 export SALERTLOG="${LOGDIR}/site-alerter.log"
@@ -20,9 +19,9 @@ export GCNSITELAT="+19.0304954539937"
 export GCNSITELONG="-97.2698484177274"
 export GCNSITEHORIZON="45.0"
 ### WEB ###
-export GCNHTTP="http://umdgrb.umd.edu/~bbaugh/${ttag}"
+export GCNHTTP="http://umdgrb.umd.edu/~bbaugh"
 export GCNSMTP="umdgrb.umd.edu"
-export GCNWEB="${HOME}/public_html/${ttag}"
+export GCNWEB="${HOME}/public_html"
 export GCNSITELINK="http://j.mp/hawcgcnwatch"
 export NOUTGCNS="100"
 ## site-alerter-daemon ##
@@ -30,8 +29,8 @@ export GCNDAEMONLOG="${LOGDIR}/gcn-daemon.log"
 export GCNDAEMONLOCK="${HOME}/locks/site-alerter-daemon.lock"
 
 export GCNDBSRV="umdgrb.umd.edu"
-export GCNDBOSRV="/home/bbaugh/public_html/${ttag}/gcns.db"
-export GCNWEBOSRV="/home/bbaugh/public_html/${ttag}"
+export GCNDBOSRV="/home/bbaugh/public_html/gcns.db"
+export GCNWEBOSRV="/home/bbaugh/public_html"
 
 export GCNINTER="60"
 
@@ -43,28 +42,28 @@ case "$1" in
     else
       echo "Starting site-alerter"
       # Start the daemon
-      python ${HOME}/devl/gcn-parser/site-alerter-daemon.py start
+      ${HOME}/devl/gcn-parser/site-alerter-daemon.py start
     fi
     ;;
   check)
-    if [ ! -a "${GCNDAEMONLOCK}" ]; then
-      echo "Starting site-alerter"
-      # Start the daemon
-      python ${HOME}/devl/gcn-parser/site-alerter-daemon.py start
+    if [ -a "${GCNDAEMONLOCK}" ]; then
+      echo "Already running"
+    else
+      echo "Not running"
     fi
     ;;
   stop)
     if [ -a "${GCNDAEMONLOCK}" ]; then
       echo "Stopping site-alerter"
       # Stop the daemon
-      python ${HOME}/devl/gcn-parser/site-alerter-daemon.py stop
+      ${HOME}/devl/gcn-parser/site-alerter-daemon.py stop
     else
       echo "Not running site-alerter"
     fi
     ;;
   restart)
     echo "Restarting site-alerter"
-    python ${HOME}/devl/gcn-parser/site-alerter-daemon.py restart
+    ${HOME}/devl/gcn-parser/site-alerter-daemon.py restart
     ;;
   *)
     # Refuse to do other stuff

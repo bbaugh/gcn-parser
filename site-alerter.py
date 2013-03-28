@@ -72,7 +72,9 @@ class alertinfo(baseentry):
     self.id = "null"
     # Read directly
     self.trigid = "unset"
-    self.trig_date = "unset"
+    self.trig_tjd = 0
+    self.trig_sod = 0.
+    #    self.trig_date = "unset"
     self.updated_date = "unset"
     self.sent = 0
     self.setDBType()
@@ -142,7 +144,8 @@ def ephemcalcs(site,odir,evttag,curinfo,toffset,ptype,up):
   '''
     Calculate sky locations and output plot
   '''
-  ephemeventtime = ephem.Date(str(curinfo.trig_date).replace('T',' '))
+  djd = curinfo.trig_tjd + 24980.5 + curinfo.trig_sod/86400.0
+  ephemeventtime = ephem.Date(djd)
   eventtime = date2num(ephemeventtime.datetime())
   site.date = ephemeventtime
   rahrs = ephem.hours(deg2rad(float(curinfo.ra)))
@@ -360,12 +363,13 @@ if __name__ == "__main__":
   ################################################################################
 
   # Grab recents
-  trig_date = 0
-  id = 1
-  trigid = 2
-  updated_date = 3
-  recentstr = "SELECT DISTINCT trig_date,id,trigid,updated_date"
-  recentstr += " FROM %s ORDER BY trig_date DESC LIMIT %i ;"%(dbcfg.dbname,\
+  trig_tjd = 0
+  trig_sod = 1
+  id = 2
+  trigid = 3
+  updated_date = 4
+  recentstr = "SELECT DISTINCT trig_tjd,trig_sod,id,trigid,updated_date"
+  recentstr += " FROM %s ORDER BY trig_tjd DESC, trig_sod DESC LIMIT %i ;"%(dbcfg.dbname,\
                                                               nrecent)
   dbcfg.curs.execute(recentstr)
   recent = dbcfg.curs.fetchall()
@@ -382,8 +386,8 @@ if __name__ == "__main__":
     # Check if this entry has been updated
     upd = False
     sentflg = 0
-    qstr = "SELECT * FROM %s WHERE trig_date='%s' AND trigid='%s';"
-    qstr = qstr%(alertdbcfg.dbname,row[trig_date],row[trigid])
+    qstr = "SELECT * FROM %s WHERE trig_tjd=%s AND trigid='%s';"
+    qstr = qstr%(alertdbcfg.dbname,row[trig_tjd],row[trigid])
     alertdbcfg.curs.execute(qstr)
     camtchs = alertdbcfg.curs.fetchall()
     if  len(camtchs) == 0:
@@ -392,7 +396,8 @@ if __name__ == "__main__":
       '''
       nAlert = alertinfo()
       nAlert.trigid = row[trigid]
-      nAlert.trig_date = row[trig_date]
+      nAlert.trig_tjd = row[trig_tjd]
+      nAlert.trig_sod = row[trig_sod]
       nAlert.updated_date = row[updated_date]
       nAlert.sent = 0
       carr = [nAlert.__getattribute__(cattr) for cattr in alertdbcfg.dbstruct.keys() ]
@@ -406,7 +411,7 @@ if __name__ == "__main__":
       '''
         This should never happen so assume it is an error and skip
       '''
-      logging.info('Found multiple entries for %s'%row[trig_date])
+      logging.info('Found multiple entries for %s'%row[trigid])
       continue
     rEUD = ephem.Date(str(row[updated_date]).replace('T',' '))
     rUD = date2num(rEUD.datetime())
@@ -427,7 +432,7 @@ if __name__ == "__main__":
     transient,ofname,othbfname = ephemcalcs(site,plotsbase,evttag,curinfo,\
                                             toffset,ptype,upd)
     if upd:
-      logging.debug("Updated %s"%(curinfo.trig_date))
+      logging.debug("Updated %s"%(curinfo.trigid))
       ustr = "UPDATE %s SET updated_date='%s' WHERE id='%s';"
       ustr = ustr%(alertdbcfg.dbname, row[updated_date], camtchs[0][a_id])
       try:
@@ -435,9 +440,10 @@ if __name__ == "__main__":
         alertdbcfg.dbconn.commit()
       except:
         logging.error( 'Failed to update Alert DB.')
-
+    djd = curinfo.trig_tjd + 24980.5 + curinfo.trig_sod/86400.0
+    epdjd = ephem.Date(djd)
     if transient.alt > pi*.25 and sentflg == 0:
-      sbjct = sbjctfmt%(curinfo.trig_date,sitetag)
+      sbjct = sbjctfmt%(str(epdjd),sitetag)
       txt = gettxt(curinfo,90.-rad2deg(transient.alt),sitetag,sitelink)
       ustr = "UPDATE %s SET sent=1 WHERE id='%s';"%(alertdbcfg.dbname,\
                                                      camtchs[0][a_id])
@@ -461,6 +467,8 @@ if __name__ == "__main__":
       cursubelm = ET.SubElement(curgcn,cattr)
       cursubelm.text = str(curinfo.__getattribute__(cattr))
     ctalt = rad2deg(transient.alt)
+    cursubelm = ET.SubElement(curgcn,'trig_date')
+    cursubelm.text = str(epdjd)
     cursubelm = ET.SubElement(curgcn,'%s_zenith'%sitetag)
     cursubelm.text = str(90.-ctalt)
     cursubelm = ET.SubElement(curgcn,'%s_img'%sitetag)

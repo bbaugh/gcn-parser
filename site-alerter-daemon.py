@@ -7,7 +7,7 @@
 #  Copyright 2013 Brian Baughman. All rights reserved.
 ################################################################################
 try:
-  import sys, re, time, threading
+  import sys, re, time
   from daemon import runner
   from os import environ, path, _exit, makedirs, stat, devnull, access, X_OK
   from subprocess import call, STDOUT, PIPE, Popen
@@ -134,8 +134,8 @@ class App():
       Updates the local copy of the GCN DB
     '''
     devnullfobj = open(devnull,'w')
-    call(['rsync','-azq','%s:%s'%(gcndbsrv,gcndbosrv),'%s/'%gcnweb],\
-         stdout=devnullfobj,stderr=devnullfobj)
+    call(['rsync','-azq','%s:%s'%(gcndbsrv,gcndbosrv),'%s/'%gcnweb] ) #,\
+    #     stdout=devnullfobj,stderr=devnullfobj)
     devnullfobj.close()
     if path.isfile('%s/%s'%(gcnweb,gcndbfname)):
       cmt = path.getmtime('%s/%s'%(gcnweb,gcndbfname))
@@ -171,7 +171,8 @@ class App():
       self.PushBack()
       self.buildsite = False
     # Wait for inter then call again
-    threading.Timer(self.inter, self.Check).start()
+    time.sleep(self.inter)
+    self.Check()
 
 
 # Start daemon

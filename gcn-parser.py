@@ -251,8 +251,9 @@ if __name__ == "__main__":
   newgcn = gcninfo()
   try:
     newgcn.trigid = GetParam(wparams,'TrigID')
+    newgcn.trig_tjd = int(GetParam(wparams,'Burst_TJD'))
+    newgcn.trig_sod = float(GetParam(wparams,'Burst_SOD'))
     tinfo = ParseWhereWhen(wherewhen)
-    newgcn.trig_date = tinfo['time']
     newgcn.isnotgrb = IsNotGRB(wgroups)
     newgcn.posunit = tinfo['unit']
     newgcn.ra = tinfo['RA']

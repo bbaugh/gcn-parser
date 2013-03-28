@@ -22,7 +22,8 @@ class gcninfo(baseentry):
     self.id = "null"
     # Read directly
     self.trigid = "unset"
-    self.trig_date = "unset"
+    self.trig_tjd = 0
+    self.trig_sod = 0.
     self.updated_date = "unset"
     self.isnotgrb = "unset"
     self.posunit = "unset"
@@ -43,7 +44,7 @@ class gcninfo(baseentry):
 ################################################################################
 # Keys to match on 
 gcnchkkeys = ["trigid",
-              "trig_date"]
+              "trig_tjd"]
 # Keys to update
 gcnupkeys = [ "isnotgrb",
              "posunit",
