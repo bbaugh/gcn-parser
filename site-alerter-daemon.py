@@ -119,7 +119,7 @@ class App():
                pidfile='/tmp/site-alerter-daemon.lock'):
     self.stdin_path = '/dev/null'
     self.stdout_path = log
-    self.stderr_path = '/dev/tty'
+    self.stderr_path = log
     self.pidfile_path =  pidfile
     self.pidfile_timeout = inter+1
     self.umask = 0022

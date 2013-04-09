@@ -115,6 +115,19 @@ def GetGroup(groups,name):
       continue
   return None
 
+def GetBurstTime(wparams):
+  btinfo = {'TJD':0 , 'SOD' : 0.0}
+  try:
+    btinfo['TJD'] = int(GetParam(wparams,'Burst_TJD'))
+    btinfo['SOD'] = float(GetParam(wparams,'Burst_SOD'))
+  except:
+    try:
+      btinfo['TJD'] = int(GetParam(wparams,'Event_TJD'))
+      btinfo['SOD'] = float(GetParam(wparams,'Event_SOD'))
+    except:
+      return None
+  return btinfo
+
 def ParseWhereWhen(wherewhen):
   obsdatloc = wherewhen.find('ObsDataLocation')
   if obsdatloc == None:
@@ -249,12 +262,27 @@ if __name__ == "__main__":
     easy_exit(-2,[dbcfg])
 
   newgcn = gcninfo()
+
+  newgcn.trigid = GetParam(wparams,'TrigID')
+  btinfo = GetBurstTime(wparams)
   try:
-    newgcn.trigid = GetParam(wparams,'TrigID')
-    newgcn.trig_tjd = int(GetParam(wparams,'Burst_TJD'))
-    newgcn.trig_sod = float(GetParam(wparams,'Burst_SOD'))
+    newgcn.trig_tjd = btinfo['TJD']
+    newgcn.trig_sod = btinfo['SOD']
+  except:
+    logging.error('Malformed XML (odd Burst Time)')
+    easy_exit(-2,[dbcfg])
+
+  try:
     tinfo = ParseWhereWhen(wherewhen)
+  except:
+    logging.error('Malformed XML (odd WhereWhen)')
+    easy_exit(-2,[dbcfg])
+  try:
     newgcn.isnotgrb = IsNotGRB(wgroups)
+  except:
+    logging.error('Malformed XML (odd GRB status)')
+    easy_exit(-2,[dbcfg])
+  try:
     newgcn.posunit = tinfo['unit']
     newgcn.ra = tinfo['RA']
     newgcn.dec = tinfo['Dec']
@@ -263,29 +291,30 @@ if __name__ == "__main__":
     newgcn.intenunit = GetParam(wparams,'Burst_Inten','unit')
     newgcn.mesgtype = what.find('Description').text
     newgcn.updated_date = who.find('Date').text
-    # derived
-    lcmesgtype = newgcn.mesgtype.lower()
-    if lcmesgtype.find('fermi') >= 0:
-      newgcn.inst = "Fermi"
-      newgcn.link = linkfmt%(newgcn.trigid,'fermi')
-    elif lcmesgtype.find('swift') >= 0:
-      newgcn.inst = "Swift"
-      newgcn.link = linkfmt%(newgcn.trigid,'swift')
-    elif lcmesgtype.find('integral') >= 0:
-      newgcn.inst = "Integral"
-      newgcn.link = linkfmt%(newgcn.trigid,'integral')
-    elif lcmesgtype.find('maxi') >= 0:
-      newgcn.inst = "MAXI"
-      newgcn.link = linkfmt%(newgcn.trigid,'maxi')
-    elif lcmesgtype.find('konus') >= 0:
-      newgcn.inst = "KONUS"
-      newgcn.link = konusgcnlink
-    elif lcmesgtype.find('ipn') >= 0:
-      newgcn.inst = "IPN"
-      newgcn.link = ipngcnlink
   except:
     logging.error('Malformed XML')
     easy_exit(-2,[dbcfg])
+  # derived
+  lcmesgtype = newgcn.mesgtype.lower()
+  if lcmesgtype.find('fermi') >= 0:
+    newgcn.inst = "Fermi"
+    newgcn.link = linkfmt%(newgcn.trigid,'fermi')
+  elif lcmesgtype.find('swift') >= 0:
+    newgcn.inst = "Swift"
+    newgcn.link = linkfmt%(newgcn.trigid,'swift')
+  elif lcmesgtype.find('integral') >= 0:
+    newgcn.inst = "Integral"
+    newgcn.link = linkfmt%(newgcn.trigid,'integral')
+  elif lcmesgtype.find('maxi') >= 0:
+    newgcn.inst = "MAXI"
+    newgcn.link = linkfmt%(newgcn.trigid,'maxi')
+  elif lcmesgtype.find('konus') >= 0:
+    newgcn.inst = "KONUS"
+    newgcn.link = konusgcnlink
+  elif lcmesgtype.find('ipn') >= 0:
+    newgcn.inst = "IPN"
+    newgcn.link = ipngcnlink
+
 
 
   id, status = AddGCN(newgcn,dbcfg)
