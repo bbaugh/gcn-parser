@@ -34,11 +34,23 @@ export GCNWEBOSRV="/home/bbaugh/public_html"
 
 export GCNINTER="60"
 
+state=0
+oldpid=0
+if [ -f $GCNDAEMONLOCK ]; then
+  read oldpid < $GCNDAEMONLOCK
+  if [ -d /proc/$oldpid ]; then
+    state=1
+  else
+    echo "Removing outdated GCNDAEMONLOCK"
+    rm $GCNDAEMONLOCK
+  fi
+fi
+
 script=`basename ${0}`
 case "$1" in
   start)
-    if [ -a "${GCNDAEMONLOCK}" ]; then
-      echo "Already running site-alerter"
+    if [ "${state}" -eq "1" ]; then
+      echo "Already running"
     else
       echo "Starting site-alerter"
       # Start the daemon
@@ -46,15 +58,15 @@ case "$1" in
     fi
     ;;
   check)
-    if [ -a "${GCNDAEMONLOCK}" ]; then
-      echo "Already running"
+    if [ "${state}" -eq "0" ]; then
+      echo "Stopped"
     else
-      echo "Not running"
+      echo "Running"
     fi
     ;;
   stop)
-    if [ -a "${GCNDAEMONLOCK}" ]; then
-      echo "Stopping site-alerter"
+    if [ "${state}" -eq "1" ]; then
+      echo "Stopping"
       # Stop the daemon
       ${HOME}/devl/gcn-parser/site-alerter-daemon.py stop
     else
@@ -63,7 +75,11 @@ case "$1" in
     ;;
   restart)
     echo "Restarting site-alerter"
-    ${HOME}/devl/gcn-parser/site-alerter-daemon.py restart
+    if [ "${state}" -eq "1" ]; then
+      ${HOME}/devl/gcn-parser/site-alerter-daemon.py restart
+    else
+      ${HOME}/devl/gcn-parser/site-alerter-daemon.py start
+    fi
     ;;
   *)
     # Refuse to do other stuff
