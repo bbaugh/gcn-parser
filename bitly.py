@@ -7,6 +7,7 @@
 #  Copyright 2011 Brian Baughman. All rights reserved.
 ################################################################################
 from os import environ
+from time import sleep
 
 try:
   bitlyapi = environ['BITLYAPI']
@@ -24,12 +25,23 @@ try:
   busr = busr.strip()
   bapi = bapi.strip()
   bitlyapif.close()
-
+  
   def shorten(longurl):
+    '''
+      Shortens URLs using bitly's service
+      If an error occurs contacting bitly it will try a total of 5 times waiting
+      5 seconds between each
+    '''
     burl = bitlyfmt%(longurl,busr,bapi)
-    response = urllib2.urlopen(burl)
-    bitlyraw = response.read()
-    response.close()
+    for i in xrange(5):
+      bitlyraw = None
+      try:
+        response = urllib2.urlopen(burl)
+        bitlyraw = response.read()
+        response.close()
+        break
+      except:
+        sleep(5)
     try:
       surl = bitlyre.findall(bitlyraw)[0]
       return surl
