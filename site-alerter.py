@@ -252,7 +252,7 @@ if __name__ == "__main__":
     site.horizon = environ['GCNSITEHORIZON']
   except:
     site.horizon = "45.000"
-
+  site.pressure = 0.
   # Time Offsets
   ephemnow = ephem.now()
   now = date2num(ephemnow.datetime())
