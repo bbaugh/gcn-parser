@@ -38,13 +38,43 @@ state=0
 oldpid=0
 if [ -f $GCNDAEMONLOCK ]; then
   read oldpid < $GCNDAEMONLOCK
-  if [ -d /proc/$oldpid ]; then
+  if [ -d "/proc/${oldpid}" ]; then
     state=1
   else
     echo "Removing outdated GCNDAEMONLOCK"
     rm $GCNDAEMONLOCK
   fi
 fi
+
+function killjob()
+{
+  if [ ${#} -eq 1 ]; then
+    kpid=${1}
+    ntkls=0
+    while true; do
+      if [ ${ntkls} -gt 10 ]; then
+        kill -9 ${kpid}
+        break
+      fi
+      if [ -d "/proc/${kpid}" ]; then
+        kill ${kpid}
+        ntkls=$(( ntkls +1 ))
+        sleep 10
+      else
+        break
+      fi
+    done
+    if [ -d "/proc/${kpid}" ]; then
+      echo "Failed to kill job(${kpid})!"
+      return 0
+    fi
+    return 1
+  else
+    echo "Invalid use of killjob!"
+    return 0
+  fi
+}
+
 
 script=`basename ${0}`
 case "$1" in
@@ -69,6 +99,10 @@ case "$1" in
       echo "Stopping"
       # Stop the daemon
       ${HOME}/devl/gcn-parser/site-alerter-daemon.py stop
+      if [ -d "/proc/${oldpid}" ]; then
+        killjob ${oldpid}
+      fi
+
     else
       echo "Not running site-alerter"
     fi
