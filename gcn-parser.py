@@ -235,7 +235,7 @@ if __name__ == "__main__":
   try:
     xroot = ET.fromstring(indata[xmlstart:])
   except:
-    logging.error('Malformed XML (no root)')
+    logging.error('Malformed XML (no root):\n%s'%sys.exc_info()[0])
     easy_exit(-2,[dbcfg])
 
 
@@ -329,8 +329,9 @@ if __name__ == "__main__":
 
   if gcnalerts != None:
     logging.info('Updating Site')
-    alrtout = check_output(['%s/site-alerter.py'%pathname])
+    alrtout, alrterr = check_output(['%s/site-alerter.py'%pathname])
     logging.info(alrtout)
+    logging.info(alrterr)
 
   easy_exit(0,[dbcfg])
 
