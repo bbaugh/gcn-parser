@@ -51,11 +51,6 @@ sbjctfmt = 'GCN at %s in %s FOV'
 txtfmt = '%s trigger %s was in the FOV of %s at %.2f degrees from Zenith. More info at %s and %s'
 # Define some regexes
 hrefre = re.compile("<[^>]*href=([^\ \"'>]+)>")
-# Easy access to colors
-clrs = rcParams['axes.color_cycle']
-# Plot file type
-ptype = '.png'
-
 ################################################################################
 # Define DB structure
 ################################################################################
