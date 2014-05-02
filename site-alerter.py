@@ -32,7 +32,7 @@ try:
   from timeConv import tjd2dttm, secInday
   from coordConv import *
   from datetime import datetime
-
+  from numpy import deg2rad, rad2deg
   # Home directory
   homedir = environ['HOME']
   # stop if something looks wrong
