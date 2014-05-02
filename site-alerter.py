@@ -172,7 +172,7 @@ if __name__ == "__main__":
   try:
     obslat = deg2rad(float(environ['GCNSITELAT']))
   except:
-    obslat = deg2rad(+19.0304954539937
+    obslat = deg2rad(+19.0304954539937)
   try:
     obslon = float(deg2rad(environ['GCNSITELONG']))
   except:
