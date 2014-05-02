@@ -26,7 +26,7 @@ def tjd2dttm(tjd):
 def jd2dttm(jd):
   tdeldays = jd - J2000JD
   d = floor(tdeldays)
-  df = tdeldays - d.
+  df = tdeldays - d
   sf = df*secInday
   s = floor(sf)
   msf = 1e6*(sf - s)

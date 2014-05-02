@@ -31,7 +31,6 @@ try:
   from bitly import shorten
   from timeConv import tjd2dttm, secInday
   from coordConv import *
-
   from datetime import datetime
 
   # Home directory
