@@ -28,18 +28,11 @@ try:
   from email import MIMEText
   from gcn_dbinterface import GetGCNConfig,GetConfig, MakeEntry, baseentry,\
     gcninfo
-  import matplotlib
-  matplotlib.use('agg')
-  from matplotlib import dates as mpldates
-  from matplotlib.cbook import is_numlike
-  from matplotlib import rcParams
-  from matplotlib.pyplot import draw, figure
-  from matplotlib.dates import datestr2num,date2num
-  import matplotlib.image as image
-  from numpy import deg2rad, rad2deg, arange, asarray, array, pi, where,\
-    iterable
-  import ephem
   from bitly import shorten
+  from timeConv import tjd2dttm, secInday
+  from coordConv import *
+
+  from datetime import datetime
 
   # Home directory
   homedir = environ['HOME']
@@ -51,8 +44,8 @@ except:
 ##############################################################################
 # Generic Settings
 ##############################################################################
-# Data base entry format
-dbfmt = "%s,f|V|F7,%s,%s,1,2000"
+# Update date format
+updfmt = '%Y-%m-%dT%H:%M:%S'
 # Subject of email format
 sbjctfmt = 'GCN at %s in %s FOV'
 # Content of email format
@@ -133,75 +126,12 @@ def email(sender,recipient,subject,text):
     msg['To'] = ','.join(recipient)
   else:
     msg['To'] = recipient
-  
+
   # Send the message via our own SMTP server, but don't include the
   # envelope header.
   s = smtplib.SMTP(gcnsmtp)
   s.sendmail(sender, msg['To'].split(','), msg.as_string())
   s.quit()
-
-def ephemcalcs(site,odir,evttag,curinfo,toffset,ptype,up):
-  '''
-    Calculate sky locations and output plot
-  '''
-  djd = curinfo.trig_tjd + 24980.5 + curinfo.trig_sod/86400.0
-  ephemeventtime = ephem.Date(djd)
-  eventtime = date2num(ephemeventtime.datetime())
-  site.date = ephemeventtime
-  rahrs = ephem.hours(deg2rad(float(curinfo.ra)))
-  dechrs = ephem.degrees(deg2rad(float(curinfo.dec)))
-  # Load source into ephem
-  line = dbfmt%(evttag.replace(',','_'),rahrs,dechrs)
-  transient = ephem.readdb(line)
-  transient.compute(site)
-  # Check we want to plt
-  ofname = '%s/%s_%s_altitude_timeline%s'%(odir,evttag,sitetag.lower(),ptype)
-  othbfname = '%s/thumbs/%s_%s_altitude_timeline_tn%s'%(odir,evttag,sitetag.lower(),ptype)
-  if not upd:
-    return transient,ofname,othbfname
-
-  # Plot the data
-  startdate = eventtime - .5
-  enddate = eventtime + .5
-  
-  site.date = ephem.Date(startdate)
-  mdates = arange(startdate,enddate,1./(24.*4))
-  
-  transientpositions = []
-  for gt in mdates:
-    site.date = gt - toffset
-    transient.compute(site)
-    transientpositions.append([gt,\
-                               transient.az,transient.alt,\
-                               transient.ra,transient.dec])
-  
-  transientpositions = asarray(transientpositions)
-  angerr = float(curinfo.error)
-  f = figure(num=2,figsize=array([ 8.   ,  6.725]))
-  f.clear()
-  ax = f.add_subplot(111)
-  skplt = ax.plot_date(transientpositions[:,0],\
-                       rad2deg(transientpositions[:,2]),clrs[0]+'o')
-  hghplt = ax.plot_date(transientpositions[:,0],\
-                        rad2deg(transientpositions[:,2])+angerr,clrs[3]+':')
-  lowplt = ax.plot_date(transientpositions[:,0],\
-                        rad2deg(transientpositions[:,2])-angerr,clrs[3]+':')
-  ax.xaxis.set_major_formatter(mpldates.DateFormatter('%m/%d %H:%M'))
-  ylms = ax.get_ylim()
-  evtplt = ax.plot_date([eventtime,eventtime],[-90,90],clrs[1]+'--')
-  ax.set_xlabel('Date [UTC]')
-  ax.set_ylabel('Altitude Angle [degrees]')
-  ax.set_title('GCN: %s'%(evttag))
-  ax.set_ylim(0,90.5)
-  ax.grid()
-  f.autofmt_xdate()
-  draw()
-  f.savefig(ofname)
-  # Save a thumbnail of the plot
-  fig = image.thumbnail(str(ofname), str(othbfname), scale=0.1)
-  site.date = ephemeventtime
-  transient.compute(site)
-  return transient,ofname,othbfname
 
 if __name__ == "__main__":
   # GCN database
@@ -235,28 +165,22 @@ if __name__ == "__main__":
     salertlog = '%s/logs/site-alerter.log'%homedir
 
   # Site Setup
-  site = ephem.Observer()
   try:
     sitetag = environ['GCNSITE']
   except:
     sitetag = 'HAWC'
   try:
-    site.lat = environ['GCNSITELAT']
+    obslat = deg2rad(float(environ['GCNSITELAT']))
   except:
-    site.lat = "+19.0304954539937"
+    obslat = deg2rad(+19.0304954539937
   try:
-    site.long = environ['GCNSITELONG']
+    obslon = float(deg2rad(environ['GCNSITELONG']))
   except:
-    site.long = "-97.2698484177274"
+    obslon = deg2rad(-97.2698484177274)
   try:
-    site.horizon = environ['GCNSITEHORIZON']
+    obshorizon = float(environ['GCNSITEHORIZON'])
   except:
-    site.horizon = "45.000"
-  site.pressure = 0.
-  # Time Offsets
-  ephemnow = ephem.now()
-  now = date2num(ephemnow.datetime())
-  toffset = now - ephemnow
+    obshorizon = float(45.000)
 
   ##############################################################################
   # LOG FILE CONFIGURATION
@@ -347,18 +271,6 @@ if __name__ == "__main__":
   except:
     nrecent = 100
   ################################################################################
-  # Setup plot output base
-  ################################################################################
-  # Output base
-  plotsbase = '%s/gcns'%gcnweb
-  if dircheck(plotsbase) == False:
-    logging.error( 'Cannot write to: %s'%(plotsbase))
-    easy_exit(-2,[dbcfg,alertdbcfg])
-  if dircheck('%s/thumbs'%plotsbase) == False:
-    logging.error( 'Cannot write to: %s/thumbs'%(plotsbase))
-    easy_exit(-3,[dbcfg,alertdbcfg])
-
-  ################################################################################
   # Meat
   ################################################################################
 
@@ -391,7 +303,7 @@ if __name__ == "__main__":
     alertdbcfg.curs.execute(qstr)
     camtchs = alertdbcfg.curs.fetchall()
     if  len(camtchs) == 0:
-      ''' 
+      '''
         Add new entry
       '''
       nAlert = alertinfo()
@@ -413,24 +325,24 @@ if __name__ == "__main__":
       '''
       logging.info('Found multiple entries for %s'%row[trigid])
       continue
-    rEUD = ephem.Date(str(row[updated_date]).replace('T',' '))
-    rUD = date2num(rEUD.datetime())
+    rEUD = datetime.strptime(str(row[updated_date]),updfmt)
     for m in camtchs:
-      mEUD = ephem.Date(str(m[a_updated_date]).replace('T',' '))
-      mUD = date2num(mEUD.datetime())
-      if rUD > mUD:
+      mEUD =  datetime.strptime(str(m[a_updated_date]),updfmt)
+      if rEUD > mEUD:
         upd = True
       sentflg += m[a_sent]
-    
+
     # Calculate position at site
     qstr = "SELECT * FROM %s WHERE id=%s;"%(dbcfg.dbname,row[id])
     dbcfg.curs.execute(qstr)
     cmtchs = dbcfg.curs.fetchall()
     curinfo = MakeEntry(cmtchs[0],gcninfo,dbcfg.dbstruct)
-    curinst = curinfo.inst.lower().replace('/','_')
-    evttag = '%s_gcn_%s'%(curinst,curinfo.trigid)
-    transient,ofname,othbfname = ephemcalcs(site,plotsbase,evttag,curinfo,\
-                                            toffset,ptype,upd)
+
+    evtTime = tjd2dttm(curinfo.trig_tjd + curinfo.trig_sod/secInday)
+    evtRA = deg2rad(float(curinfo.ra))
+    evtDec = deg2rad(float(curinfo.dec))
+    evtAlt,evtAz = eq2horz(obslat,obslon,evtTime,evtRA,evtDec)
+    evtdZenith = 90. - rad2deg(evtAlt)
     if upd:
       logging.debug("Updated %s"%(curinfo.trigid))
       ustr = "UPDATE %s SET updated_date='%s' WHERE id='%s';"
@@ -440,11 +352,10 @@ if __name__ == "__main__":
         alertdbcfg.dbconn.commit()
       except:
         logging.error( 'Failed to update Alert DB.')
-    djd = curinfo.trig_tjd + 24980.5 + curinfo.trig_sod/86400.0
-    epdjd = ephem.Date(djd)
-    if transient.alt > pi*.25 and sentflg == 0:
-      sbjct = sbjctfmt%(str(epdjd),sitetag)
-      txt = gettxt(curinfo,90.-rad2deg(transient.alt),sitetag,sitelink)
+
+    if evtdZenith < obshorizon and sentflg == 0:
+      sbjct = sbjctfmt%(str(evtTime),sitetag)
+      txt = gettxt(curinfo,evtdZenith,sitetag,sitelink)
       ustr = "UPDATE %s SET sent=1 WHERE id='%s';"%(alertdbcfg.dbname,\
                                                      camtchs[0][a_id])
       try:
@@ -468,15 +379,7 @@ if __name__ == "__main__":
       cursubelm.text = str(curinfo.__getattribute__(cattr))
     ctalt = rad2deg(transient.alt)
     cursubelm = ET.SubElement(curgcn,'trig_date')
-    cursubelm.text = str(epdjd)
-    cursubelm = ET.SubElement(curgcn,'%s_zenith'%sitetag)
-    cursubelm.text = str(90.-ctalt)
-    cursubelm = ET.SubElement(curgcn,'%s_img'%sitetag)
-    imgName = path.basename(ofname)
-    thbImgName = path.basename(othbfname)
-    srvImgName = '%s/gcns/%s'%(gcnhttp,imgName)
-    srvThbImgname = '%s/gcns/thumbs/%s'%(gcnhttp,thbImgName)
-    cursubelm.text = '<a href="%s"><img alt="Angry face" src="%s"></a>'%(srvImgName,srvThbImgname)
+    cursubelm.text = str(evtTime)
 
 
   # Save XML
