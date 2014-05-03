@@ -362,6 +362,8 @@ if __name__ == "__main__":
         continue
 
 
+    #Save to XML
+    curgcn = ET.SubElement(gcns, "gcn")
     for cattr in dbcfg.dbstruct.keys():
       cursubelm = ET.SubElement(curgcn,cattr)
       cursubelm.text = str(curinfo.__getattribute__(cattr))
