@@ -368,7 +368,11 @@ if __name__ == "__main__":
       cursubelm = ET.SubElement(curgcn,cattr)
       cursubelm.text = str(curinfo.__getattribute__(cattr))
     cursubelm = ET.SubElement(curgcn,'trig_date')
-    cursubelm.text = str(evtTime)
+    utt = evtTime.utctimetuple()
+    cursubelm.text = "%i-%02i-%02i %02i:%02i:%02i"%(utt.tm_year,utt.tm_mon,\
+                                                    utt.tm_mday,\
+                                                    utt.tm_hour,utt.tm_min,\
+                                                    utt.tm_sec)
 
 
   # Save XML
