@@ -361,17 +361,10 @@ if __name__ == "__main__":
         logging.error( 'Failed to send notification or update Alert DB.')
         continue
 
-    # Save to XML
-    curgcn = ET.SubElement(gcns, "gcn")
-    if transient.alt > site.horizon:
-      curgcn.attrib['class'] = "obs"
-    else:
-      curgcn.attrib['class'] = "outfov"
 
     for cattr in dbcfg.dbstruct.keys():
       cursubelm = ET.SubElement(curgcn,cattr)
       cursubelm.text = str(curinfo.__getattribute__(cattr))
-    ctalt = rad2deg(transient.alt)
     cursubelm = ET.SubElement(curgcn,'trig_date')
     cursubelm.text = str(evtTime)
 
