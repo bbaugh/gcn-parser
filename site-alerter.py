@@ -116,7 +116,7 @@ def email(sender,recipient,subject,text):
   # recipient == the recipient's email address
   msg['Subject'] = subject
   msg['From'] = sender
-  if iterable(recipient):
+  if hasattr(recipient,'__iter__'):
     msg['To'] = ','.join(recipient)
   else:
     msg['To'] = recipient
