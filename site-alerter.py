@@ -345,7 +345,7 @@ if __name__ == "__main__":
         alertdbcfg.curs.execute(ustr)
         alertdbcfg.dbconn.commit()
       except:
-        logging.error( 'Failed to update Alert DB.')
+        logging.error( 'Failed to update Alert DB:\n%s'%sys.exc_info()[0])
 
     if evtdZenith < obshorizon and sentflg == 0:
       sbjct = sbjctfmt%(str(evtTime),sitetag)
@@ -358,7 +358,7 @@ if __name__ == "__main__":
         email(sender,recipients,sbjct,txt)
         logging.info( 'Sent: %s'%(sbjct))
       except:
-        logging.error( 'Failed to send notification or update Alert DB.')
+        logging.error( 'Failed to send notification or update Alert DB:\n%s'%sys.exc_info()[0])
         continue
 
 
