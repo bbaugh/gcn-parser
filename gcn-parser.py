@@ -12,7 +12,7 @@
 # Load needed modules
 ################################################################################
 try:
-  import sys, re, time, logging
+  import sys, re, time, logging, traceback
   from os import environ, path, _exit, makedirs, stat
   from subprocess import check_output
   pathname = path.dirname(sys.argv[0])
@@ -235,7 +235,7 @@ if __name__ == "__main__":
   try:
     xroot = ET.fromstring(indata[xmlstart:])
   except:
-    logging.error('Malformed XML (no root):\n%s'%sys.exc_info()[0])
+    logging.error('Malformed XML (no root):\n%s'%traceback.format_exc())
     easy_exit(-2,[dbcfg])
 
 
