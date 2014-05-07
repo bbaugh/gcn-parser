@@ -14,7 +14,7 @@
 try:
   import sys, re, time, logging, traceback
   from os import environ, path, _exit, makedirs, stat
-  from subprocess import check_output
+  from subprocess import check_output, STDOUT
   pathname = path.dirname(sys.argv[0])
 except:
   print 'Failed to load base modules'
@@ -329,9 +329,8 @@ if __name__ == "__main__":
 
   if gcnalerts != None:
     logging.info('Updating Site')
-    alrtout, alrterr = check_output(['%s/site-alerter.py'%pathname])
+    alrtout = check_output(['%s/site-alerter.py'%pathname],stderr=subprocess.STDOUT)
     logging.info(alrtout)
-    logging.info(alrterr)
 
   easy_exit(0,[dbcfg])
 
