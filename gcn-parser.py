@@ -329,7 +329,7 @@ if __name__ == "__main__":
 
   if gcnalerts != None:
     logging.info('Updating Site')
-    alrtout = check_output(['%s/site-alerter.py'%pathname],stderr=subprocess.STDOUT)
+    alrtout = check_output(['%s/site-alerter.py'%pathname],stderr=STDOUT)
     logging.info(alrtout)
 
   easy_exit(0,[dbcfg])
