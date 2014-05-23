@@ -46,9 +46,9 @@ except:
 # Update date format
 updfmt = '%Y-%m-%dT%H:%M:%S'
 # Subject of email format
-sbjctfmt = 'GCN at %s in %s FOV'
+sbjctfmt = 'GCN at %s at %.f in FOV'
 # Content of email format
-txtfmt = '%s trigger %s was in the FOV of %s at %.2f degrees from Zenith. More info at %s and %s'
+txtfmt = '%s trigger %s was in the FOV at %.2f degrees from Zenith. Info at %s and %s'
 # Define some regexes
 hrefre = re.compile("<[^>]*href=([^\ \"'>]+)>")
 ################################################################################
@@ -104,7 +104,6 @@ def gettxt(cinfo,curzen,sitetag,sitelink):
   '''
   txt = txtfmt%(cinfo.inst.capitalize(),\
                 cinfo.trigid,\
-                sitetag,\
                 curzen,\
                 shorten(cinfo.link),\
                 sitelink)
@@ -348,7 +347,7 @@ if __name__ == "__main__":
         logging.error( 'Failed to update Alert DB:\n%s'%traceback.format_exc())
 
     if evtdZenith < obshorizon and sentflg == 0:
-      sbjct = sbjctfmt%(str(evtTime),sitetag)
+      sbjct = sbjctfmt%(evtTime.strftime("%Y-%m-%d %H:%M:%S"),evtdZenith)
       txt = gettxt(curinfo,evtdZenith,sitetag,sitelink)
       ustr = "UPDATE %s SET sent=1 WHERE id='%s';"%(alertdbcfg.dbname,\
                                                      camtchs[0][a_id])
